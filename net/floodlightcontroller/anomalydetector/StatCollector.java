@@ -1,4 +1,4 @@
-package net.floodlightcontroller.anomalydetection;
+package net.floodlightcontroller.anomalydetector;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -7,120 +7,164 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.ProtocolException;
+//import java.net.MalformedURLException;
+//import java.net.ProtocolException;
 import java.net.URL;
+
  
-public class StatCollector {
- 
+public class StatCollector 
+{
 	private URL TargetURL = null;
 	private HttpURLConnection conn = null;
-	private BufferedReader br = null;
-	private PrintWriter log = null;
+	private BufferedReader BufferReader = null;
+	/*
+	 *  Use more unambiguous name e.g. LogWriter instead of log. So that you can have LogWriter and LogFile - two different
+	 *  types of objects
+	 */
+	
+	private PrintWriter LogWriter = null;
+	private String StatType = null;
+	private String StringURL = null;
+	private String FileName = null;
+	
+	//Declare the constants
+	protected static String OUTPUT_FILE_NAME = "LogWriter";
+	protected static String STAT_FORMAT = "/json";
+	// we now have only one switch. But an array will help us extending to work with multiple switches
+	protected static String[] SWITCH_SOCKET = {"http://localhost:8080/wm/core/switch/all"};  
+	protected static String HTTP_POST = "POST";
+	protected static String HTTP_GET = "GET";
 	
 	
 	/*Constructor for collecting "statType" parameter from all switches */
 	public StatCollector(String statType)
 	{
-		 String temp = new String("http://localhost:8080/wm/core/switch/all/");
-		 temp = temp + statType + "/json";
-		 String filename = new String("log");
-		 filename = filename + "_" + "all" + "_" + statType + ".txt";
-		 try {
-			log = new PrintWriter(filename);
-		} catch (FileNotFoundException e1) {
-			e1.printStackTrace();
-		}
-		 
-		 try {
-			 this.TargetURL = new URL(temp);
-			 this.conn = (HttpURLConnection) TargetURL.openConnection();
-			 
-		 }
-		 catch (MalformedURLException e) {
-			 e.printStackTrace();
- 
-		 } 
-		 catch (IOException e) {
-			 e.printStackTrace();
-		 }
-		 
+		 this.StatType = statType;
+		 this.FileName = StatCollector.OUTPUT_FILE_NAME + "_" + "all" + "_" + this.StatType + ".txt";
+		 this.StringURL = StatCollector.SWITCH_SOCKET[0] + this.StatType + StatCollector.STAT_FORMAT;
+		 this.InitializeConnection();
+		 /*
+		  * I am not sure we should Initialize the connection implicitly or not. A good practice would be to create 
+		  * an object of this StatCollector from whatever upper level class and then Call 
+		  * StatCollObj.InitializeConnection. The same is true for the second constructor. I will leave this for you to
+		  * decide.
+		  *  
+		  */
 	}
 	
-	
+		
 	/*Constructor for collecting "statType" parameter from each switch denoted by "dpid" */
 	public StatCollector(String dpid, String statType) 
 	{
-		 String temp = new String("http://localhost:8080/wm/core/switch/");
-		 temp = temp + dpid + statType + "/json";
-		 String filename = new String("log");
-		 filename = filename + "_" + dpid + "_" + statType + ".txt";
-		 try {
-			log = new PrintWriter(filename);
-		} catch (FileNotFoundException e1) {
-			e1.printStackTrace();
-		}
-		 
-		 try {
-			 this.TargetURL = new URL(temp);
-			 this.conn = (HttpURLConnection) TargetURL.openConnection();
-			 
-		 }
-		 catch (MalformedURLException e) {
-			 e.printStackTrace();
- 
-		 } 
-		 catch (IOException e) {
-			 e.printStackTrace();
-		 }
-		 
+		 this.StatType = statType;
+		 this.StringURL =  StatCollector.SWITCH_SOCKET[0] + dpid + this.StatType + StatCollector.STAT_FORMAT;
+		 this.FileName = StatCollector.OUTPUT_FILE_NAME + "_" + "dpid" + "_" + this.StatType + ".txt";
+		 this.InitializeConnection();
 	}
 	
 	
-	/*Method to initialize the "conn" parameter */
-	public void InitializeCollector()  
+	private void InitializeConnection()
 	{
-		try {
-			conn.setRequestMethod("GET");
-			conn.setRequestProperty("Accept", "application/json");
-			
-			if (conn.getResponseCode() != 200) {
-				throw new RuntimeException("Failed : HTTP error code : "
-						+ conn.getResponseCode());
-			}
-		} catch (ProtocolException e) {
-			
-			e.printStackTrace();
-		} catch (IOException e) {
-			
-			e.printStackTrace();
+		try 
+		{
+			 this.TargetURL = new URL(this.StringURL);
+			 this.conn = (HttpURLConnection) TargetURL.openConnection();
+			 if (this.conn != null)
+			 {
+				 this.conn.setRequestMethod(StatCollector.HTTP_POST); //Post is better
+				 this.conn.setRequestProperty("Accept", "application/json");
+				 if (conn.getResponseCode() != 200) 
+				 {
+					throw new RuntimeException("Failed : HTTP error code : " + this.conn.getResponseCode());
+				 }
+				 else
+				 {
+					this.LogResponse(this.conn.getInputStream()); 
+				 }
+			 }
 		}
-		
-		
+		catch (Exception e) //If we don't the what could go wrong, catch all types of exceptions 
+		{
+			 e.printStackTrace();
+		}
 	}
 	
-	/*Method to log the response */
-	public void logResponse(InputStream input)
+	
+	private void OpenLogWriter()
+	{
+		try 
+		{
+		   this.LogWriter = new PrintWriter(this.FileName);
+		} 
+		catch (FileNotFoundException e)
+		/*
+		 * FileNotFoundException will never be thrown in this case i guess. Printwriter 
+		 * will force create a new file if file is not found. Rather should catch General exceptions i think.
+		 */
+		{
+			e.printStackTrace();
+		}
+	}
+	
+	private void CloseLogWriter()
+	{
+		if (this.LogWriter != null)
+		{
+			try
+			{
+				this.LogWriter.close();
+			}
+			catch (Exception e)
+			{
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	/*Method to LogWriter the response */
+	private void LogResponse(InputStream input)
 	{
 		String output;
-		br = new BufferedReader(new InputStreamReader(input));
-		try {
-			while ((output = br.readLine()) != null) {
-				System.out.println(output);
-				log.append(output);
+		BufferReader = new BufferedReader(new InputStreamReader(input));
+		this.OpenLogWriter();
+		try 
+		{
+			while ((output = BufferReader.readLine()) != null) 
+			{
+				/* 
+				 * Commenting out this line. If we are printing on a file, printing on the console at the same time
+				 * is unnecessary and it will slow the system down. But please feel free to uncomment it for debugging
+				 * System.out.println(output);  
+				 * 
+				 * */ 
+				this.LogWriter.append(output);
 			}
-		} catch (IOException e) {
+		} 
+		catch (IOException e) 
+		{
 			e.printStackTrace();
 		}
-		log.close();
+		this.CloseLogWriter();
 	}
 	
 	
-	public void disconnect()
+	private void CloseHttpConn()
 	{
-		conn.disconnect();
+		if (this.conn != null)
+		{
+			try 
+			{
+				this.conn.disconnect();
+			}
+			catch (Exception e)
+			{
+				e.printStackTrace();
+			}
+		}
+		
 	}
+
 	  
  
-	}
+}
  
