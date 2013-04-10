@@ -7,8 +7,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.HttpURLConnection;
-//import java.net.MalformedURLException;
-//import java.net.ProtocolException;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.URL;
 
  
@@ -31,7 +31,7 @@ public class StatCollector
 	protected static String OUTPUT_FILE_NAME = "LogWriter";
 	protected static String STAT_FORMAT = "/json";
 	// we now have only one switch. But an array will help us extending to work with multiple switches
-	protected static String[] SWITCH_SOCKET = {"http://localhost:8080/wm/core/switch/all"};  
+	protected static String[] SWITCH_SOCKET = {"http://localhost:8080/wm/core/switch/all/"};  
 	protected static String HTTP_POST = "POST";
 	protected static String HTTP_GET = "GET";
 	
@@ -42,7 +42,7 @@ public class StatCollector
 		 this.StatType = statType;
 		 this.FileName = StatCollector.OUTPUT_FILE_NAME + "_" + "all" + "_" + this.StatType + ".txt";
 		 this.StringURL = StatCollector.SWITCH_SOCKET[0] + this.StatType + StatCollector.STAT_FORMAT;
-		 this.InitializeConnection();
+		 //this.InitializeConnection();
 		 /*
 		  * I am not sure we should Initialize the connection implicitly or not. A good practice would be to create 
 		  * an object of this StatCollector from whatever upper level class and then Call 
@@ -59,11 +59,11 @@ public class StatCollector
 		 this.StatType = statType;
 		 this.StringURL =  StatCollector.SWITCH_SOCKET[0] + dpid + this.StatType + StatCollector.STAT_FORMAT;
 		 this.FileName = StatCollector.OUTPUT_FILE_NAME + "_" + "dpid" + "_" + this.StatType + ".txt";
-		 this.InitializeConnection();
+		 //this.InitializeConnection();
 	}
 	
 	
-	private void InitializeConnection()
+	public void Connect()
 	{
 		try 
 		{
@@ -71,7 +71,7 @@ public class StatCollector
 			 this.conn = (HttpURLConnection) TargetURL.openConnection();
 			 if (this.conn != null)
 			 {
-				 this.conn.setRequestMethod(StatCollector.HTTP_POST); //Post is better
+				 this.conn.setRequestMethod(StatCollector.HTTP_GET); 
 				 this.conn.setRequestProperty("Accept", "application/json");
 				 if (conn.getResponseCode() != 200) 
 				 {
@@ -94,7 +94,7 @@ public class StatCollector
 	{
 		try 
 		{
-		   this.LogWriter = new PrintWriter(this.FileName);
+		   LogWriter = new PrintWriter(this.FileName);
 		} 
 		catch (FileNotFoundException e)
 		/*
@@ -137,6 +137,7 @@ public class StatCollector
 				 * System.out.println(output);  
 				 * 
 				 * */ 
+				System.out.println(output); 
 				this.LogWriter.append(output);
 			}
 		} 

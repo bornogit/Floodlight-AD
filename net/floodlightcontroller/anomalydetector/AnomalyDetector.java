@@ -16,8 +16,6 @@ import org.openflow.protocol.OFPort;
 import org.openflow.protocol.OFType;
 import org.openflow.protocol.action.OFAction;
 import org.openflow.protocol.action.OFActionOutput;
-import org.openflow.protocol.action.OFActionTransportLayerDestination;
-import org.openflow.protocol.action.OFActionTransportLayerSource;
 import org.openflow.util.U16;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,28 +29,39 @@ import net.floodlightcontroller.core.module.FloodlightModuleException;
 import net.floodlightcontroller.core.module.IFloodlightModule;
 import net.floodlightcontroller.core.module.IFloodlightService;
 import net.floodlightcontroller.packet.Ethernet;
+import net.floodlightcontroller.restserver.IRestApiService;
+import net.floodlightcontroller.staticflowentry.IStaticFlowEntryPusherService;
 
 
 /*	
  * since we are listening to OpenFlow messages we need to 
  * register with the FloodlightProvider (IFloodlightProviderService class
 */
-public class AnomalyDetector implements IOFMessageListener, IFloodlightModule {
+public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, Runnable {
 
 	/*
-	 * member variables used in LearningSwitch
+	 * member variables used in AnomalyDetector
 	 * */
+	protected IStaticFlowEntryPusherService sfp;
+	protected IRestApiService restApi;
 	protected IFloodlightProviderService floodlightProvider;
 	protected Map<Long, Short> macToPort;
 	protected static Logger logger;
+	//Added the following
+	protected int flowNum;
+	protected StatCollector FlowLogger;
+	protected boolean firstTime;
+	protected Thread th;
 	
 	// 0 - NOTHING, 1 - HUB, 2 - LEARNING_SWITCH_WO_RULES, 3 - LEARNING_SWITCH_WITH_RULES
-	// 4 - Firewall
-	// 5 - NAT
-	protected static int CTRL_LEVEL = 4;
-    protected static short FLOWMOD_DEFAULT_IDLE_TIMEOUT = 30; // in seconds
+	protected static int CTRL_LEVEL = 3;
+    protected static short FLOWMOD_DEFAULT_IDLE_TIMEOUT = 20; // in seconds
     protected static short FLOWMOD_DEFAULT_HARD_TIMEOUT = 0; // infinite
 	
+    
+    
+    
+    
 	/*
 	 * important to override 
 	 * put an ID for our OFMessage listener
@@ -96,6 +105,7 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule {
 		Collection<Class<? extends IFloodlightService >> fsrv = 
 			new ArrayList<Class<? extends IFloodlightService>>();
 		fsrv.add(IFloodlightProviderService.class);
+		fsrv.add(IStaticFlowEntryPusherService.class);
 		return fsrv;
 	}
 
@@ -109,6 +119,11 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule {
 		floodlightProvider = context.getServiceImpl(IFloodlightProviderService.class);
 		macToPort 		   = new HashMap<Long, Short>();
 		logger    		   = LoggerFactory.getLogger(AnomalyDetector.class);
+		sfp = context.getServiceImpl(IStaticFlowEntryPusherService.class);
+		flowNum = 1;
+		FlowLogger = new StatCollector("flow");
+		firstTime = true;
+		th = new Thread(this);
 	}
 
 	/*
@@ -118,8 +133,10 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule {
 	@Override
 	public void startUp(FloodlightModuleContext context) {
 		floodlightProvider.addOFMessageListener(OFType.PACKET_IN, this);
+		
 	}
 	
+    
 	/*
 	 * push a packet-out to the switch
 	 * */
@@ -158,7 +175,6 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule {
         }
 	}
 	
-		
 	/*
 	 * control logic which install static rules 
 	 * */
@@ -248,7 +264,7 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule {
         Long destMac   = Ethernet.toLong(match.getDataLayerDestination());
         
         Short inputPort = pi.getInPort();
-        match.getNetworkDestination();
+        
         // if the (sourceMac, port) does not exist in MAC table
         //		add a new entry
         if (!macToPort.containsKey(sourceMac))
@@ -297,159 +313,146 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule {
 		return Command.CONTINUE;
 	}
 	
-/* Firewall */
-	
-	private Command firewall(IOFSwitch sw, OFPacketIn pi)
+	/*
+	 * adding flow rules using Static Flow Pusher API
+	 */
+	private Command addStaticRules(IOFSwitch sw, OFPacketIn pi)
 	{
-		//input port
-		short inPort = pi.getInPort();
-						
-		// Reading packet data headers using OFMatch
-		OFMatch match  = new OFMatch();
-		match.loadFromPacket(pi.getPacketData(), inPort);
-		
-		//get the network protocol
-		byte inNetworkProtocol = match.getNetworkProtocol();
-		int tcpDestPort = match.getTransportDestination();
-		
-		logger.debug("Running Firewall");
-		if ((inNetworkProtocol == 0x11) || (tcpDestPort == 23))
-		{
-			logger.debug("Firewall Rule Matched");
-			//set the rules
-			OFFlowMod rule = new OFFlowMod();
-			rule.setType(OFType.FLOW_MOD); //type is flow modification rule
-			rule.setCommand(OFFlowMod.OFPFC_ADD); // Command to add rule
-			match.setWildcards(~OFMatch.OFPFW_TP_DST);
-			rule.setMatch(match);
-			rule.setIdleTimeout(FLOWMOD_DEFAULT_IDLE_TIMEOUT);
-			rule.setHardTimeout(FLOWMOD_DEFAULT_HARD_TIMEOUT);
-			rule.setBufferId(OFPacketOut.BUFFER_ID_NONE); // Setting buffer id to none;
-			rule.setMatch(match);
-			ArrayList<OFAction> actions = new ArrayList<OFAction>();
- 			OFAction action = null;
- 			actions.add(action);
- 			rule.setActions(null);
-			rule.setLength((short)(OFFlowMod.MINIMUM_LENGTH));
-			try
-			{
-				sw.write(rule, null);
-			}
-			catch (Exception e)
-			{
-				logger.error(e.getMessage());
-				e.printStackTrace();
-			}
-			return Command.CONTINUE;
-			 // push the packet to the switch, do we need to in this case?	
-        	//this.pushPacket(sw, match, pi, outPort);
-			//ctrlLogicWithRules(sw, pi);
-		}
-		else
-		{
-			return this.ctrlLogicWithRules(sw, pi);
-		}
-		
-		
-	}
-
-	
-/* NAT */
-	
-	private Command nat(IOFSwitch sw, OFPacketIn pi)
-	{
-		//input port
-		short inPort = pi.getInPort();
-						
-		// Reading packet data headers using OFMatch
-		OFMatch match  = new OFMatch();
-		match.loadFromPacket(pi.getPacketData(), inPort);
-		
-		//get the network protocol
-		byte inNetworkProtocol = match.getNetworkProtocol();
-		short tcpDestPort = (short) match.getNetworkDestination();
-		short tcpSrcPort = (short) match.getNetworkSource();
-		short changedTransportPort = 443;
-		
-		if (inNetworkProtocol == 0x06)
-		{
-			//set the rules
-			OFFlowMod rule = new OFFlowMod();
-			rule.setType(OFType.FLOW_MOD); //type is flow modification rule
-			rule.setCommand(OFFlowMod.OFPFC_ADD); // Command to add rule
-			rule.setIdleTimeout(FLOWMOD_DEFAULT_IDLE_TIMEOUT);
-			rule.setHardTimeout(FLOWMOD_DEFAULT_HARD_TIMEOUT);
-			rule.setBufferId(OFPacketOut.BUFFER_ID_NONE); // Setting buffer id to none;
-			rule.setLength((short)(OFFlowMod.MINIMUM_LENGTH + OFActionOutput.MINIMUM_LENGTH) );
-			//come back here to decide on the output length
-			
-			// set of actions to apply to this rule
+		// Read in packet data headers by using an OFMatch structure
+        OFMatch match = new OFMatch();
+        match.loadFromPacket(pi.getPacketData(), pi.getInPort());		
+        
+		// take the source and destination mac from the packet
+		Long sourceMac = Ethernet.toLong(match.getDataLayerSource());
+        Long destMac   = Ethernet.toLong(match.getDataLayerDestination());
+        
+        Short inputPort = pi.getInPort();
+        
+        // if the (sourceMac, port) does not exist in MAC table
+        // 		add a new entry
+        if (!macToPort.containsKey(sourceMac)) 
+        	macToPort.put(sourceMac, inputPort);
+        
+       
+        // if the destMac is in the MAC table take the outPort and send it there
+        Short outPort = macToPort.get(destMac);
+        
+        // if an entry does exist for destMac
+        //		flood the packet
+        if (outPort == null) 
+        	this.pushPacket(sw, match, pi, (short)OFPort.OFPP_FLOOD.getValue());                	
+        else {
+    	        	
+    	// otherwise install a rule s.t. all the traffic with the destination
+        // destMac should be forwarded on outPort
+        		            
+        	// create the rule and specify it's an ADD rule
+        	OFFlowMod rule = new OFFlowMod();
+ 			rule.setType(OFType.FLOW_MOD); 			
+ 			rule.setCommand(OFFlowMod.OFPFC_ADD);
+ 			
+ 			// specify that all fields except destMac to be wildcarded
+ 			match.setWildcards(~OFMatch.OFPFW_DL_DST);
+ 			//match.setDataLayerDestination(match.getDataLayerDestination());
+ 			rule.setMatch(match);
+ 			
+ 			// specify timers for the life of the rule
+ 			rule.setIdleTimeout(AnomalyDetector.FLOWMOD_DEFAULT_IDLE_TIMEOUT);
+ 			rule.setHardTimeout(AnomalyDetector.FLOWMOD_DEFAULT_HARD_TIMEOUT);
+ 	        
+ 	        // set the buffer id to NONE - implementation artifact
+ 			rule.setBufferId(OFPacketOut.BUFFER_ID_NONE);
+ 	       
+ 	        // set of actions to apply to this rule
  			ArrayList<OFAction> actions = new ArrayList<OFAction>();
- 			OFAction changePortAction = null;
- 			if (tcpDestPort == 443)
-			{
-				match.setWildcards(~OFMatch.OFPFW_TP_DST);
-				changePortAction = new OFActionTransportLayerDestination((short)80);
-				logger.debug("Destination Port 443 Detected");
-			}
-			else if (tcpSrcPort == 80)
-			{
-				match.setWildcards(~OFMatch.OFPFW_TP_SRC);
-				changePortAction = new OFActionTransportLayerSource(changedTransportPort);
-				logger.debug("Source Port 80 Detected");
-			}
-			actions.add(changePortAction);
-			rule.setActions(actions);
-			rule.setMatch(match);
-			try
-			{
-				sw.write(rule, null);
-			}
-			catch (Exception e)
-			{
-				logger.error(e.getMessage());
-				e.printStackTrace();
-			}
-			 // push the packet to the switch	
-        	//this.pushPacket(sw, match, pi, outPort);
-			ctrlLogicWithRules(sw, pi);
-		}
-		return Command.CONTINUE;
+ 			OFAction outputTo = new OFActionOutput(outPort);
+ 			actions.add(outputTo);
+ 			rule.setActions(actions);
+ 			 			
+ 			// specify the length of the flow structure created
+ 			rule.setLength((short) (OFFlowMod.MINIMUM_LENGTH + OFActionOutput.MINIMUM_LENGTH)); 			
+ 				
+ 			logger.debug("install rule for destination {}", destMac);
+ 			
+ 			String flowName = "flow-";
+ 			flowName = flowName + Integer.toString(flowNum);
+ 			flowNum++; 
+ 			logger.debug("install rule for flowName {}", flowName);
+ 			
+ 			try {
+ 				//sw.write(rule, null);
+ 				sfp.addFlow(flowName, rule, sw.getStringId());
+ 			} catch (Exception e) {
+ 				e.printStackTrace();
+ 			}	
+        
+        // push the packet to the switch	
+        	this.pushPacket(sw, match, pi, outPort);        	
+        }       
+        
+        return Command.CONTINUE;
+		
 	}
-
+	
 	
 	@Override
 	public net.floodlightcontroller.core.IListener.Command receive(
 			IOFSwitch sw, OFMessage msg, FloodlightContext cntx) {
 				
+		if (firstTime)
+		{
+			th.start();
+			//FlowLogger.Connect();
+			firstTime = false;
+		}
         OFMatch match = new OFMatch();
         match.loadFromPacket(((OFPacketIn)msg).getPacketData(), 
         					 ((OFPacketIn)msg).getInPort());
 		
 		if (match.getDataLayerType() != Ethernet.TYPE_IPv4)
 			return Command.CONTINUE;
-		if (msg.getType() == org.openflow.protocol.OFType.PACKET_IN)
-		{
-			logger.debug("Receive a packet !");
-			
-			switch (AnomalyDetector.CTRL_LEVEL)
-			{
-				case 1:
+		
+		switch (msg.getType()) {
+		
+			case PACKET_IN:
+				logger.debug("Receive a packet !");
+				
+				return this.addStaticRules(sw, (OFPacketIn) msg);
+				/*if (AnomalyDetector.CTRL_LEVEL == 1)
 					return this.ctrlLogicHub(sw, (OFPacketIn) msg);
-				case 2:
-					return this.ctrlLogicWithoutRules(sw, (OFPacketIn) msg);
-				case 3:
+				else if (AnomalyDetector.CTRL_LEVEL == 2)
+					return this.ctrlLogicWithoutRules(sw, (OFPacketIn) msg);					
+				else if (AnomalyDetector.CTRL_LEVEL == 3)
 					return this.ctrlLogicWithRules(sw, (OFPacketIn) msg);
-				case 4:
-					return this.firewall(sw, (OFPacketIn)msg);
-				case 5:
-					return this.nat(sw, (OFPacketIn) msg);
-				default:
-					break;
-			}
-		}
-		logger.error("received an unexpected message {} from switch {}", msg, sw);
-	    return Command.CONTINUE;
+				 */
+				
+			default:
+				break;
+       }
+       logger.error("received an unexpected message {} from switch {}", msg, sw);
+       return Command.CONTINUE;
    }
 
-}
+	public void run()
+	{
+		
+		while(true)
+		{	
+			try
+			{
+				logger.debug("<<<<<<<<<<<<IN RUN!!!!>>>>>>>>");
+				FlowLogger.Connect();
+				Thread.sleep(10000);
+			}
+			catch(Exception e)
+			{
+				e.printStackTrace();
+			}
+		}
+	}
+			
+		
+		
+		
+	}
+
