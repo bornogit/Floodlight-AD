@@ -1,10 +1,12 @@
 package net.floodlightcontroller.anomalydetector;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import org.openflow.protocol.OFFlowMod;
@@ -29,6 +31,7 @@ import net.floodlightcontroller.core.module.FloodlightModuleException;
 import net.floodlightcontroller.core.module.IFloodlightModule;
 import net.floodlightcontroller.core.module.IFloodlightService;
 import net.floodlightcontroller.packet.Ethernet;
+import net.floodlightcontroller.packet.IPv4;
 import net.floodlightcontroller.restserver.IRestApiService;
 import net.floodlightcontroller.staticflowentry.IStaticFlowEntryPusherService;
 
@@ -47,11 +50,16 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 	protected IFloodlightProviderService floodlightProvider;
 	protected Map<Long, Short> macToPort;
 	protected static Logger logger;
+	
 	//Added the following
 	protected int flowNum;
 	protected StatCollector FlowLogger;
 	protected boolean firstTime;
 	protected Thread th;
+	protected Map<String, Map<String, OFFlowMod>> flowLog;
+	protected OFMatch flowMatch;
+	protected OFFlowMod flowMap; 
+	protected PrintWriter logWriter;
 	
 	// 0 - NOTHING, 1 - HUB, 2 - LEARNING_SWITCH_WO_RULES, 3 - LEARNING_SWITCH_WITH_RULES
 	protected static int CTRL_LEVEL = 3;
@@ -124,6 +132,10 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 		FlowLogger = new StatCollector("flow");
 		firstTime = true;
 		th = new Thread(this);
+		flowMatch = new OFMatch();
+		flowMap = new OFFlowMod();
+		
+		
 	}
 
 	/*
@@ -415,7 +427,7 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 		switch (msg.getType()) {
 		
 			case PACKET_IN:
-				logger.debug("Receive a packet !");
+				//logger.debug("Receive a packet !");
 				
 				return this.addStaticRules(sw, (OFPacketIn) msg);
 				/*if (AnomalyDetector.CTRL_LEVEL == 1)
@@ -440,15 +452,65 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 		{	
 			try
 			{
+				logWriter = new PrintWriter("Log_User_Readable.txt");
 				logger.debug("<<<<<<<<<<<<IN RUN!!!!>>>>>>>>");
-				FlowLogger.Connect();
+				//FlowLogger.Connect();
+				
+				flowLog = sfp.getFlows();
+				Iterator it = flowLog.entrySet().iterator();
+				while(it.hasNext())
+				{
+					Map.Entry sw = (Map.Entry) it.next();
+					Map temp;
+					temp = (Map) sw.getValue();
+					
+					Iterator it2 = temp.entrySet().iterator();
+					while(it2.hasNext())
+					{
+						Map.Entry name = (Map.Entry) it2.next();
+						flowMap = (OFFlowMod) name.getValue();
+						flowMatch = flowMap.getMatch();
+						
+						/*System.out.println(name);
+						System.out.println(IPv4.fromIPv4Address(flowMatch.getNetworkSource()));
+						System.out.println(flowMatch.getNetworkSourceMaskLen());
+						System.out.println(IPv4.fromIPv4Address(flowMatch.getNetworkDestination()));
+						System.out.println(flowMatch.getNetworkDestinationMaskLen());
+						System.out.println(flowMatch.getNetworkProtocol());
+						System.out.println((short)flowMatch.getTransportSource());
+						System.out.println((short)flowMatch.getTransportDestination());*/
+						
+						
+						//logWriter.append(name);
+						logWriter.append(IPv4.fromIPv4Address(flowMatch.getNetworkSource()));
+						logWriter.append("/");
+						logWriter.append(String.valueOf(flowMatch.getNetworkSourceMaskLen()));
+						logWriter.append(" ");
+						logWriter.append(IPv4.fromIPv4Address(flowMatch.getNetworkDestination()));
+						logWriter.append("/");
+						logWriter.append(String.valueOf(flowMatch.getNetworkDestinationMaskLen()));
+						logWriter.append(" ");
+						logWriter.append(String.valueOf(flowMatch.getNetworkProtocol()));
+						logWriter.append(" ");
+						logWriter.append(String.valueOf(flowMatch.getTransportSource()));
+						logWriter.append(" ");
+						logWriter.append(String.valueOf(flowMatch.getTransportDestination()));
+						logWriter.println();
+						
+						
+					}
+					
+				}
+				
+				logWriter.close();
 				Thread.sleep(10000);
+				
 			}
 			catch(Exception e)
 			{
 				e.printStackTrace();
 			}
-		}
+		} // while 1 loop
 	}
 			
 		
