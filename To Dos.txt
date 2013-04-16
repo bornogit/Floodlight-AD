@@ -1,16 +1,29 @@
 Project Tasks
 
-1. Write the code 
-2. Analyze the collected data in the background 
-3. Add  a set of base rules
-4. We will be using the basic learning switch module that we already have
-5. Add more logic for adding smart rules		
-6. We tried to use IStaticFlowEntryPusherService to add and delete flow rules as well as to grab statistics from the switch. 
+1. Modify the StatCollector 
+	- To add the parser
+	- To chreck everything is working 
+
+2. Separate Rule handling from the main class, that is use RuleHandler. So that it can be used by other classes 
+3. Come up with the Central Logic
+	- Deciding the base rules
+	- Monitoring the log file
+	- Detect Anomaly 
+	- Add new rules if needed 
+
+4. Analyze the collected data in the background 
+
+5. Investigate what more mininet can do for us to help with the simulation
+
+Notes -
+
+1. We tried to use IStaticFlowEntryPusherService to add and delete flow rules as well as to grab statistics from the switch. 
 	But the output we got did not have the desired fields in it. So we decided to go with a custom StatCollector which runs in
 	the background.
 
 Assumptions
-1. Use the learning switch module that came in with the floodlight
+1. Use the learning switch module that came in with the floodlight. We are assuming the switch(es) know how to route packets.
+   So this module does not worry about routing.
 
 Questions 
 
