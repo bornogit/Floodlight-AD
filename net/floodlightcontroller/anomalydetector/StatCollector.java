@@ -42,14 +42,6 @@ public class StatCollector
 		 this.StatType = statType;
 		 this.FileName = StatCollector.OUTPUT_FILE_NAME + "_" + "all" + "_" + this.StatType + ".txt";
 		 this.StringURL = StatCollector.SWITCH_SOCKET[0] + this.StatType + StatCollector.STAT_FORMAT;
-		 //this.InitializeConnection();
-		 /*
-		  * I am not sure we should Initialize the connection implicitly or not. A good practice would be to create 
-		  * an object of this StatCollector from whatever upper level class and then Call 
-		  * StatCollObj.InitializeConnection. The same is true for the second constructor. I will leave this for you to
-		  * decide.
-		  *  
-		  */
 	}
 	
 		
@@ -59,7 +51,6 @@ public class StatCollector
 		 this.StatType = statType;
 		 this.StringURL =  StatCollector.SWITCH_SOCKET[0] + dpid + this.StatType + StatCollector.STAT_FORMAT;
 		 this.FileName = StatCollector.OUTPUT_FILE_NAME + "_" + "dpid" + "_" + this.StatType + ".txt";
-		 //this.InitializeConnection();
 	}
 	
 	
@@ -97,10 +88,6 @@ public class StatCollector
 		   LogWriter = new PrintWriter(this.FileName);
 		} 
 		catch (FileNotFoundException e)
-		/*
-		 * FileNotFoundException will never be thrown in this case i guess. Printwriter 
-		 * will force create a new file if file is not found. Rather should catch General exceptions i think.
-		 */
 		{
 			e.printStackTrace();
 		}
@@ -164,8 +151,13 @@ public class StatCollector
 		}
 		
 	}
-
-	  
+	
+	private String ParseResult()
+	{
+		String ParsedResult="";
+		
+		return ParsedResult;
+	}
  
 }
  

@@ -46,7 +46,6 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 	 * member variables used in AnomalyDetector
 	 * */
 	protected IStaticFlowEntryPusherService sfp;
-	protected IRestApiService restApi;
 	protected IFloodlightProviderService floodlightProvider;
 	protected Map<Long, Short> macToPort;
 	protected static Logger logger;
@@ -54,19 +53,15 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 	//Added the following
 	protected int flowNum;
 	protected StatCollector FlowLogger;
-	//protected boolean firstTime; // Don't need this, the writing thread should be started in init
 	protected Thread th;
 	protected Map<String, Map<String, OFFlowMod>> flowLog;
 	protected OFMatch flowMatch;
 	protected OFFlowMod flowMap; 
-	protected PrintWriter logWriter;
-	
+		
 	protected static short FLOWMOD_DEFAULT_IDLE_TIMEOUT = 20; // in seconds
     protected static short FLOWMOD_DEFAULT_HARD_TIMEOUT = 0; // infinite
 	
-    /*// 0 - NOTHING, 1 - HUB, 2 - LEARNING_SWITCH_WO_RULES, 3 - LEARNING_SWITCH_WITH_RULES
-	protected static int CTRL_LEVEL = 3;*/
-    
+        
 	/*
 	 * important to override 
 	 * load dependencies and initialize datastructures
@@ -97,7 +92,6 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 			IOFSwitch sw, OFMessage msg, FloodlightContext cntx) 
 	{
 		
-		
         OFMatch match = new OFMatch();
         match.loadFromPacket(((OFPacketIn)msg).getPacketData(), 
         					 ((OFPacketIn)msg).getInPort());
@@ -110,15 +104,7 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 		switch (msg.getType()) 
 		{
 			case PACKET_IN:
-				//logger.debug("Receive a packet !");
 				return this.addStaticRules(sw, (OFPacketIn) msg);
-				/*if (AnomalyDetector.CTRL_LEVEL == 1)
-					return this.ctrlLogicHub(sw, (OFPacketIn) msg);
-				else if (AnomalyDetector.CTRL_LEVEL == 2)
-					return this.ctrlLogicWithoutRules(sw, (OFPacketIn) msg);					
-				else if (AnomalyDetector.CTRL_LEVEL == 3)
-					return this.ctrlLogicWithRules(sw, (OFPacketIn) msg);
-				 */
 			default:
 				break;
        }
@@ -193,7 +179,8 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
  			flowNum++; 
  			logger.debug("install rule for flowName {}", flowName);
  			
- 			try {
+ 			try 
+ 			{
  				//sw.write(rule, null);
  				sfp.addFlow(flowName, rule, sw.getStringId());
  			} catch (Exception e) {
@@ -208,6 +195,30 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 		
 	}
 	 
+
+	
+	public void run()
+	{
+		while(true)
+		{	
+			try
+			{
+				FlowLogger.Connect();
+				Thread.sleep(10000);
+			}
+			catch(Exception e)
+			{
+				e.printStackTrace();
+			}
+		} 
+	}
+			
+	/*
+	 * 
+	 * Put the functions that we don't need to change after this block	
+	 */
+	
+	
 	/*
 	 * Do we need to push packet to the switch? 
 	 * push a packet-out to the switch
@@ -246,208 +257,6 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
             logger.error("failed to write packetOut: ", e);
         }
 	}
-	
-	public void run()
-	{
-		while(true)
-		{	
-			try
-			{
-				logWriter = new PrintWriter("Log_User_Readable.txt");
-				logger.debug("<<<<<<<<<<<<IN RUN!!!!>>>>>>>>");
-				//FlowLogger.Connect();
-				flowLog = sfp.getFlows();
-				Iterator it = flowLog.entrySet().iterator();
-				while(it.hasNext())
-				{
-					Map.Entry sw = (Map.Entry) it.next();
-					Map temp;
-					temp = (Map) sw.getValue();
-					
-					Iterator it2 = temp.entrySet().iterator();
-					while(it2.hasNext())
-					{
-						Map.Entry name = (Map.Entry) it2.next();
-						flowMap = (OFFlowMod) name.getValue();
-						flowMatch = flowMap.getMatch();
-						
-						/*System.out.println(name);
-						System.out.println(IPv4.fromIPv4Address(flowMatch.getNetworkSource()));
-						System.out.println(flowMatch.getNetworkSourceMaskLen());
-						System.out.println(IPv4.fromIPv4Address(flowMatch.getNetworkDestination()));
-						System.out.println(flowMatch.getNetworkDestinationMaskLen());
-						System.out.println(flowMatch.getNetworkProtocol());
-						System.out.println((short)flowMatch.getTransportSource());
-						System.out.println((short)flowMatch.getTransportDestination());*/
-						
-						//logWriter.append(name);
-						logWriter.append(IPv4.fromIPv4Address(flowMatch.getNetworkSource()));
-						logWriter.append("/");
-						logWriter.append(String.valueOf(flowMatch.getNetworkSourceMaskLen()));
-						logWriter.append(" ");
-						logWriter.append(IPv4.fromIPv4Address(flowMatch.getNetworkDestination()));
-						logWriter.append("/");
-						logWriter.append(String.valueOf(flowMatch.getNetworkDestinationMaskLen()));
-						logWriter.append(" ");
-						logWriter.append(String.valueOf(flowMatch.getNetworkProtocol()));
-						logWriter.append(" ");
-						logWriter.append(String.valueOf(flowMatch.getTransportSource()));
-						logWriter.append(" ");
-						logWriter.append(String.valueOf(flowMatch.getTransportDestination()));
-						logWriter.println();
-					}
-				}
-				
-				logWriter.close();
-				Thread.sleep(10000);
-			}
-			catch(Exception e)
-			{
-				e.printStackTrace();
-			}
-		} // while 1 loop
-	}
-			
-	/*
-	 * 
-	 * Put the functions that we don't need to change after this block	
-	 */
-	
-	/* Omitting the functions that we don't need in this class
-	
-	// control logic which install static rules 
-	private Command ctrlLogicWithRules(IOFSwitch sw, OFPacketIn pi) 
-	{
-	    // Read in packet data headers by using an OFMatch structure
-        OFMatch match = new OFMatch();
-        match.loadFromPacket(pi.getPacketData(), pi.getInPort());		
-        
-		// take the source and destination mac from the packet
-		Long sourceMac = Ethernet.toLong(match.getDataLayerSource());
-        Long destMac   = Ethernet.toLong(match.getDataLayerDestination());
-        
-        Short inputPort = pi.getInPort();
-        
-        // if the (sourceMac, port) does not exist in MAC table
-        // 		add a new entry
-        if (!macToPort.containsKey(sourceMac)) 
-        	macToPort.put(sourceMac, inputPort);
-        
-       
-        // if the destMac is in the MAC table take the outPort and send it there
-        Short outPort = macToPort.get(destMac);
-        
-        // if an entry does exist for destMac
-        //		flood the packet
-        if (outPort == null) 
-        	this.pushPacket(sw, match, pi, (short)OFPort.OFPP_FLOOD.getValue());                	
-        else {
-    	        	
-    	// otherwise install a rule s.t. all the traffic with the destination
-        // destMac should be forwarded on outPort
-        		            
-        	// create the rule and specify it's an ADD rule
-        	OFFlowMod rule = new OFFlowMod();
- 			rule.setType(OFType.FLOW_MOD); 			
- 			rule.setCommand(OFFlowMod.OFPFC_ADD);
- 			
- 			// specify that all fields except destMac to be wildcarded
- 			match.setWildcards(~OFMatch.OFPFW_DL_DST);
- 			//match.setDataLayerDestination(match.getDataLayerDestination());
- 			rule.setMatch(match);
- 			
- 			// specify timers for the life of the rule
- 			rule.setIdleTimeout(AnomalyDetector.FLOWMOD_DEFAULT_IDLE_TIMEOUT);
- 			rule.setHardTimeout(AnomalyDetector.FLOWMOD_DEFAULT_HARD_TIMEOUT);
- 	        
- 	        // set the buffer id to NONE - implementation artifact
- 			rule.setBufferId(OFPacketOut.BUFFER_ID_NONE);
- 	       
- 	        // set of actions to apply to this rule
- 			ArrayList<OFAction> actions = new ArrayList<OFAction>();
- 			OFAction outputTo = new OFActionOutput(outPort);
- 			actions.add(outputTo);
- 			rule.setActions(actions);
- 			 			
- 			// specify the length of the flow structure created
- 			rule.setLength((short) (OFFlowMod.MINIMUM_LENGTH + OFActionOutput.MINIMUM_LENGTH)); 			
- 				
- 			logger.debug("install rule for destination {}", destMac);
- 			
- 			try {
- 				sw.write(rule, null);
- 			} catch (Exception e) {
- 				e.printStackTrace();
- 			}	
-        
-        // push the packet to the switch	
-        	this.pushPacket(sw, match, pi, outPort);        	
-        }       
-        
-        return Command.CONTINUE;
-	}
-
-	
-	//control logic which handles each packet in
-	Private Command ctrlLogicWithoutRules(IOFSwitch sw, OFPacketIn pi) 
-	{
-	    // Read in packet data headers by using OFMatch
-        OFMatch match = new OFMatch();
-        match.loadFromPacket(pi.getPacketData(), pi.getInPort());
-		
-		// take the source and destination mac from the packet
-		Long sourceMac = Ethernet.toLong(match.getDataLayerSource());
-        Long destMac   = Ethernet.toLong(match.getDataLayerDestination());
-        
-        Short inputPort = pi.getInPort();
-        
-        // if the (sourceMac, port) does not exist in MAC table
-        //		add a new entry
-        if (!macToPort.containsKey(sourceMac))
-        	macToPort.put(sourceMac, inputPort);
-        
-        // if the destMac is in the MAC table take the outPort and send it there
-        Short outPort = macToPort.get(destMac);
-        this.pushPacket(sw, match, pi, 
-       		(outPort == null) ? (short)OFPort.OFPP_FLOOD.getValue() : outPort);
-        
-        return Command.CONTINUE;
-	}
-	
-	// hub implementation
-	private Command ctrlLogicHub(IOFSwitch sw, OFPacketIn pi) {
-
-        OFPacketOut po = (OFPacketOut) floodlightProvider.getOFMessageFactory()
-                		.getMessage(OFType.PACKET_OUT);
-        po.setBufferId(pi.getBufferId())
-          .setInPort(pi.getInPort());
-
-        // set actions
-        OFActionOutput action = new OFActionOutput()
-            .setPort((short) OFPort.OFPP_FLOOD.getValue());
-        po.setActions(Collections.singletonList((OFAction)action));
-        po.setActionsLength((short) OFActionOutput.MINIMUM_LENGTH);
-
-        // set data if is is included in the packetin
-        if (pi.getBufferId() == OFPacketOut.BUFFER_ID_NONE) {
-            byte[] packetData = pi.getPacketData();
-            po.setLength(U16.t(OFPacketOut.MINIMUM_LENGTH
-                    + po.getActionsLength() + packetData.length));
-            po.setPacketData(packetData);
-        } else {
-            po.setLength(U16.t(OFPacketOut.MINIMUM_LENGTH
-                    + po.getActionsLength()));
-        }
-        try {
-            sw.write(po, null);
-        } catch (IOException e) {
-            logger.error("Failure writing PacketOut", e);
-        }
-		
-		return Command.CONTINUE;
-	}*/
-	
-
 
 	/*
 	 * important to override 

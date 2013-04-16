@@ -93,10 +93,7 @@ public class RuleHandler
 		
 	}
 	
-	public void RuleHandler(String dpid)
-	{
-		
-		
-	}
+	
+	//Assuming there is a file that 
 
 }

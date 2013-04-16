@@ -1,0 +1,17 @@
+Project Tasks
+
+1. Write the code 
+2. Analyze the collected data in the background 
+3. Add  a set of base rules
+4. We will be using the basic learning switch module that we already have
+5. Add more logic for adding smart rules		
+6. We tried to use IStaticFlowEntryPusherService to add and delete flow rules as well as to grab statistics from the switch. 
+	But the output we got did not have the desired fields in it. So we decided to go with a custom StatCollector which runs in
+	the background.
+
+Assumptions
+1. Use the learning switch module that came in with the floodlight
+
+Questions 
+
+1. 
