@@ -67,56 +67,6 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
     protected static short FLOWMOD_DEFAULT_HARD_TIMEOUT = 0; // infinite
 	
     
-    
-    
-    
-	/*
-	 * important to override 
-	 * put an ID for our OFMessage listener
-	 * */
-	@Override
-	public String getName() {
-		return AnomalyDetector.class.getSimpleName();
-	}
-
-	@Override
-	public boolean isCallbackOrderingPrereq(OFType type, String name) {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
-	@Override
-	public boolean isCallbackOrderingPostreq(OFType type, String name) {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
-	@Override
-	public Collection<Class<? extends IFloodlightService>> getModuleServices() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public Map<Class<? extends IFloodlightService>, IFloodlightService> getServiceImpls() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	/*
-	 * important to override 
-	 * need to wire up to the module loading system by telling the 
-	 * module loader we depend on it 
-	 * */
-	@Override
-	public Collection<Class<? extends IFloodlightService>> getModuleDependencies() {
-		Collection<Class<? extends IFloodlightService >> fsrv = 
-			new ArrayList<Class<? extends IFloodlightService>>();
-		fsrv.add(IFloodlightProviderService.class);
-		fsrv.add(IStaticFlowEntryPusherService.class);
-		return fsrv;
-	}
-
 	/*
 	 * important to override 
 	 * load dependencies and initialize datastructures
@@ -134,26 +84,16 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 		th = new Thread(this);
 		flowMatch = new OFMatch();
 		flowMap = new OFFlowMod();
-		
-		
 	}
 
-	/*
-	 * important to override 
-	 * implement the basic listener - listen for PACKET_IN messages
-	 * */
-	@Override
-	public void startUp(FloodlightModuleContext context) {
-		floodlightProvider.addOFMessageListener(OFType.PACKET_IN, this);
-		
-	}
+
 	
     
 	/*
 	 * push a packet-out to the switch
 	 * */
-	private void pushPacket(IOFSwitch sw, OFMatch match, OFPacketIn pi, short outport) {
-		
+	private void pushPacket(IOFSwitch sw, OFMatch match, OFPacketIn pi, short outport) 
+	{
 		// create an OFPacketOut for the pushed packet
         OFPacketOut po = (OFPacketOut) floodlightProvider.getOFMessageFactory()
                 		.getMessage(OFType.PACKET_OUT);        
@@ -190,9 +130,9 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 	/*
 	 * control logic which install static rules 
 	 * */
-	private Command ctrlLogicWithRules(IOFSwitch sw, OFPacketIn pi) {
-		
-        // Read in packet data headers by using an OFMatch structure
+	private Command ctrlLogicWithRules(IOFSwitch sw, OFPacketIn pi) 
+	{
+	    // Read in packet data headers by using an OFMatch structure
         OFMatch match = new OFMatch();
         match.loadFromPacket(pi.getPacketData(), pi.getInPort());		
         
@@ -265,9 +205,9 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 	/*
 	 * control logic which handles each packet in
 	 */
-	private Command ctrlLogicWithoutRules(IOFSwitch sw, OFPacketIn pi) {
-		
-        // Read in packet data headers by using OFMatch
+	private Command ctrlLogicWithoutRules(IOFSwitch sw, OFPacketIn pi) 
+	{
+	    // Read in packet data headers by using OFMatch
         OFMatch match = new OFMatch();
         match.loadFromPacket(pi.getPacketData(), pi.getInPort());
 		
@@ -409,8 +349,8 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 	
 	@Override
 	public net.floodlightcontroller.core.IListener.Command receive(
-			IOFSwitch sw, OFMessage msg, FloodlightContext cntx) {
-				
+			IOFSwitch sw, OFMessage msg, FloodlightContext cntx) 
+	{
 		if (firstTime)
 		{
 			th.start();
@@ -447,7 +387,6 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 
 	public void run()
 	{
-		
 		while(true)
 		{	
 			try
@@ -455,7 +394,6 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 				logWriter = new PrintWriter("Log_User_Readable.txt");
 				logger.debug("<<<<<<<<<<<<IN RUN!!!!>>>>>>>>");
 				//FlowLogger.Connect();
-				
 				flowLog = sfp.getFlows();
 				Iterator it = flowLog.entrySet().iterator();
 				while(it.hasNext())
@@ -480,7 +418,6 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 						System.out.println((short)flowMatch.getTransportSource());
 						System.out.println((short)flowMatch.getTransportDestination());*/
 						
-						
 						//logWriter.append(name);
 						logWriter.append(IPv4.fromIPv4Address(flowMatch.getNetworkSource()));
 						logWriter.append("/");
@@ -496,15 +433,11 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 						logWriter.append(" ");
 						logWriter.append(String.valueOf(flowMatch.getTransportDestination()));
 						logWriter.println();
-						
-						
 					}
-					
 				}
 				
 				logWriter.close();
 				Thread.sleep(10000);
-				
 			}
 			catch(Exception e)
 			{
@@ -513,8 +446,66 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 		} // while 1 loop
 	}
 			
-		
-		
-		
+	/*
+	 * 
+	 * Put the functions that we don't need to change after this block	
+	 */
+
+	/*
+	 * important to override 
+	 * put an ID for our OFMessage listener
+	 * */
+	@Override
+	public String getName() {
+		return AnomalyDetector.class.getSimpleName();
 	}
+
+	@Override
+	public boolean isCallbackOrderingPrereq(OFType type, String name) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean isCallbackOrderingPostreq(OFType type, String name) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public Collection<Class<? extends IFloodlightService>> getModuleServices() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Map<Class<? extends IFloodlightService>, IFloodlightService> getServiceImpls() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/*
+	 * important to override 
+	 * need to wire up to the module loading system by telling the 
+	 * module loader we depend on it 
+	 * */
+	@Override
+	public Collection<Class<? extends IFloodlightService>> getModuleDependencies() {
+		Collection<Class<? extends IFloodlightService >> fsrv = 
+			new ArrayList<Class<? extends IFloodlightService>>();
+		fsrv.add(IFloodlightProviderService.class);
+		fsrv.add(IStaticFlowEntryPusherService.class);
+		return fsrv;
+	}
+
+	/*
+	 * important to override 
+	 * implement the basic listener - listen for PACKET_IN messages
+	 * */
+	@Override
+	public void startUp(FloodlightModuleContext context) {
+		floodlightProvider.addOFMessageListener(OFType.PACKET_IN, this);
+		
+	}		
+}
 
