@@ -10,6 +10,8 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.StringTokenizer;
 
  
 public class StatCollector 
@@ -34,7 +36,7 @@ public class StatCollector
 	protected static String[] SWITCH_SOCKET = {"http://localhost:8080/wm/core/switch/all/"};  
 	protected static String HTTP_POST = "POST";
 	protected static String HTTP_GET = "GET";
-	
+	protected static String LOG_FORMAT = "<DestIP/subnet NWproto SrcIP/subnet DestPort SrcPort byteCnt pktCnt>";
 	
 	/*Constructor for collecting "statType" parameter from all switches */
 	public StatCollector(String statType)
@@ -112,6 +114,7 @@ public class StatCollector
 	private void LogResponse(InputStream input)
 	{
 		String output;
+		String parsedOutput;
 		BufferReader = new BufferedReader(new InputStreamReader(input));
 		this.OpenLogWriter();
 		try 
@@ -124,8 +127,11 @@ public class StatCollector
 				 * System.out.println(output);  
 				 * 
 				 * */ 
-				System.out.println(output); 
-				this.LogWriter.append(output);
+				System.out.println("OUTPUT"+output); 
+				parsedOutput = this.ParseResult(output);
+				//this.LogWriter.append(output);
+				this.LogWriter.println(LOG_FORMAT);
+				this.LogWriter.append(parsedOutput);
 			}
 		} 
 		catch (IOException e) 
@@ -135,6 +141,75 @@ public class StatCollector
 		this.CloseLogWriter();
 	}
 	
+	private String ParseResult(String input)
+	{
+		String result = "";
+		StringTokenizer tokenizer = new StringTokenizer(input, "[ :,\"{}\\[\\]]+");
+		
+		while (tokenizer.hasMoreElements()) 
+		{
+		//System.out.println(tokenizer.nextToken());
+			String temp;
+			temp = tokenizer.nextToken();
+			if(temp.equals("networkDestination"))
+			{
+				result = result + " <";
+				result = result + tokenizer.nextToken();
+				result = result + "/";
+			}
+			
+			if(temp.equals("networkDestinationMaskLen"))
+			{
+				result = result + tokenizer.nextToken();
+				result = result + " ";
+			}
+			
+			if(temp.equals("networkProtocol"))
+			{
+				result = result + tokenizer.nextToken();
+				result = result + " ";
+			}
+			
+			if(temp.equals("networkSource"))
+			{
+				result = result + tokenizer.nextToken();
+				result = result + "/";
+			}
+			
+			if(temp.equals("networkSourceMaskLen"))
+			{
+				result = result + tokenizer.nextToken();
+				result = result + " ";
+			}
+			
+			if(temp.equals("transportDestination"))
+			{
+				result = result + tokenizer.nextToken();
+				result = result + " ";
+			}
+			
+			if(temp.equals("transportSource"))
+			{
+				result = result + tokenizer.nextToken();
+				result = result + " ";
+			}
+			
+			if(temp.equals("byteCount"))
+			{
+				result = result + tokenizer.nextToken();
+				result = result + " ";
+			}
+			
+			if(temp.equals("packetCount"))
+			{
+				result = result + tokenizer.nextToken();
+				result = result + "> ";
+			}
+		}
+
+		
+		return result;
+	}
 	
 	private void CloseHttpConn()
 	{
@@ -152,12 +227,7 @@ public class StatCollector
 		
 	}
 	
-	private String ParseResult()
-	{
-		String ParsedResult="";
-		
-		return ParsedResult;
-	}
+	
  
 }
  

@@ -76,15 +76,13 @@ public class AnomalyDetector implements IOFMessageListener, IFloodlightModule, R
 		sfp = context.getServiceImpl(IStaticFlowEntryPusherService.class);
 		flowNum = 1;
 		FlowLogger = new StatCollector("flow");
-		//firstTime = true;
 		th = new Thread(this);
 		flowMatch = new OFMatch();
 		flowMap = new OFFlowMod();
 		
 		//Start the thread 
 		th.start();
-		//FlowLogger.Connect();
-		//firstTime = false;
+		
 	}
 
 	@Override
