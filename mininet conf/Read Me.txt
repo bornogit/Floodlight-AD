@@ -4,3 +4,6 @@ Example
 ====== A single switch with 10 hosts ========
 Run 
 sudo mn ....
+
+
+sudo mn --topo single,3 --mac --arp --switch ovsk --controller=remote,ip=192.168.40.1

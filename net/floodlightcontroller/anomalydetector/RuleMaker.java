@@ -39,10 +39,12 @@ import org.openflow.util.U16;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.floodlightcontroller.anomalydetector.TrafficCluster.TrafficType;
 import net.floodlightcontroller.core.FloodlightContext;
 import net.floodlightcontroller.core.IFloodlightProviderService;
 import net.floodlightcontroller.core.IOFMessageListener;
 import net.floodlightcontroller.core.IOFSwitch;
+import net.floodlightcontroller.core.IListener.Command;
 import net.floodlightcontroller.core.module.FloodlightModuleContext;
 import net.floodlightcontroller.core.module.FloodlightModuleException;
 import net.floodlightcontroller.core.module.IFloodlightModule;
@@ -66,34 +68,108 @@ import net.floodlightcontroller.topology.NodePortTuple;
 import net.floodlightcontroller.util.MACAddress;
 import net.floodlightcontroller.util.OFMessageDamper;
 
-public class RuleHandler 
+public class RuleMaker 
 {
 	private String SwitchDpid = null;
-	private String FlowName = null;
+	
 	private Map<String, String> Actions = null;
-	private int Priority;
+	
+	private short Priority;
 	private boolean Active;
-	private int IngressPort;
-	private long SrcMac;
-	private long DstMac;
-	private int VlanId;
-	private int VlanPriority;
-	private int EtherType;
-	private int TosBits;
-	private int Protocol;
+	
+	private short EtherType;
+	private byte Protocol;
 	private String SrcIP = null;
 	private String DstIP = null;
 	private short SrcPort;
 	private short DstPort;
 	
+	private String FlowName;
 	
+	private IOFSwitch sw;
+	private Logger logger;
+	protected IStaticFlowEntryPusherService sfp;
+	protected OFMatch FlowMatch;
+	protected OFFlowMod rule;
 	
-	public void RuleHandler()
+	protected static short FLOWMOD_DEFAULT_IDLE_TIMEOUT = 20; // in seconds
+    protected static short FLOWMOD_DEFAULT_HARD_TIMEOUT = 0; // infinite
+	
+	public RuleMaker(IOFSwitch sw, IStaticFlowEntryPusherService sfp)
 	{
-		
+		this.sw = sw;
+		this.sfp = sfp;
 	}
 	
 	
-	//Assuming there is a file that 
+	private void PushFlowMod()
+	{
+		this.sfp.addFlow(this.FlowName, this.rule, this.sw.getStringId());
+	}
+	
+	public void SetParams(int ClusterID, String SrcIP, String DstIP, short SrcPort, short DstPort, TrafficCluster.TrafficType Protocol)
+	{
+		this.SrcIP = SrcIP;
+		this.DstIP = DstIP;
+		this.SrcPort = SrcPort;
+		this.DstPort = DstPort;
+		this.Priority=0;
+		switch (Protocol)
+		{
+			case TCP:
+				this.Protocol = IPv4.PROTOCOL_TCP;
+				break;
+			case UDP:
+				this.Protocol = IPv4.PROTOCOL_UDP;
+			case ICMP:
+				this.Protocol = IPv4.PROTOCOL_ICMP;
+				break;
+		}
+		this.FlowName = "flow-"+ Integer.toString(ClusterID);
+	
+	}
+	
+	private void CreateMod()
+	{
+		this.FlowMatch = new OFMatch();
+		this.FlowMatch.setNetworkSource(IPv4.toIPv4Address(this.SrcIP));
+		this.FlowMatch.setNetworkDestination(IPv4.toIPv4Address(this.DstIP));
+	    this.FlowMatch.setDataLayerType(Ethernet.TYPE_IPv4); 
+	    this.FlowMatch.setNetworkProtocol(this.Protocol);
+	    this.FlowMatch.setTransportSource(this.SrcPort);
+	    this.FlowMatch.setTransportDestination(this.DstPort);
+	    
+		
+        //match.loadFromPacket(pi.getPacketData(), pi.getInPort());
+       
+        
+              
+       	// create the rule and specify it's an ADD rule
+       	rule = new OFFlowMod();
+		rule.setType(OFType.FLOW_MOD); 			
+		rule.setCommand(OFFlowMod.OFPFC_ADD);
+ 		rule.setMatch(FlowMatch);
+		rule.setIdleTimeout(RuleMaker.FLOWMOD_DEFAULT_IDLE_TIMEOUT);
+ 		rule.setHardTimeout(RuleMaker.FLOWMOD_DEFAULT_HARD_TIMEOUT);
+ 		rule.setBufferId(OFPacketOut.BUFFER_ID_NONE);
+ 	     
+ 	    // set of actions to apply to this rule
+ 		ArrayList<OFAction> actions = new ArrayList<OFAction>();
+// 		OFAction outputTo = new OFActionOutput((short)2);
+ 		rule.setActions(actions);
+ 		rule.setPriority(this.Priority);	 			
+		// specify the length of the flow structure created
+		rule.setLength((short) (OFFlowMod.MINIMUM_LENGTH + OFActionOutput.MINIMUM_LENGTH)); 			
+		
+		
+    
+	}
+	
+	public void InstallRule()
+	{
+		this.CreateMod();
+		this.PushFlowMod();
+	}
+	
 
 }
