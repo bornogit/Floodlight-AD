@@ -74,8 +74,5 @@ public class TrafficCluster
 		
 	}
 	
-	private void DeleteCluster()
-	{
-		
-	}
+	
 }

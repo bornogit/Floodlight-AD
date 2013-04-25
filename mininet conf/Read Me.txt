@@ -7,3 +7,6 @@ sudo mn ....
 
 
 sudo mn --topo single,3 --mac --arp --switch ovsk --controller=remote,ip=192.168.40.1
+
+
+flow-0=OFFlowMod [actionFactory=org.openflow.protocol.factory.BasicFactory@4b11be6d, actions=null, bufferId=-1, command=0, cookie=45035996273704960, flags=0, hardTimeout=0, idleTimeout=0, match=OFMatch[dl_type=0x800,nw_proto=6], outPort=-1, priority=0, length=72, type=FLOW_MOD, version=1, xid=0]

@@ -4,9 +4,8 @@ import java.io.IOException;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.Set;
+import java.util.List;
 
 import java.util.Map;
 
@@ -17,9 +16,6 @@ import org.openflow.protocol.OFPacketIn;
 import org.openflow.protocol.OFPacketOut;
 
 import org.openflow.protocol.OFType;
-import org.openflow.protocol.action.OFAction;
-import org.openflow.protocol.action.OFActionOutput;
-import org.openflow.util.U16;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,42 +24,38 @@ import net.floodlightcontroller.core.IFloodlightProviderService;
 import net.floodlightcontroller.core.IOFMessageListener;
 import net.floodlightcontroller.core.IOFSwitch;
 import net.floodlightcontroller.core.IOFSwitchListener;
-import net.floodlightcontroller.core.internal.Controller.SwitchUpdateType;
+
 import net.floodlightcontroller.core.module.FloodlightModuleContext;
 import net.floodlightcontroller.core.module.FloodlightModuleException;
 import net.floodlightcontroller.core.module.IFloodlightModule;
 import net.floodlightcontroller.core.module.IFloodlightService;
-import net.floodlightcontroller.linkdiscovery.ILinkDiscovery.LinkType;
-import net.floodlightcontroller.linkdiscovery.ILinkDiscoveryListener;
-import net.floodlightcontroller.linkdiscovery.ILinkDiscoveryService;
-import net.floodlightcontroller.linkdiscovery.LinkInfo;
 import net.floodlightcontroller.packet.Ethernet;
 
-import net.floodlightcontroller.routing.Link;
+
 import net.floodlightcontroller.staticflowentry.IStaticFlowEntryPusherService;
-import net.floodlightcontroller.topology.NodePortTuple;
+
 
 
 /*	
  * since we are listening to OpenFlow messages we need to 
  * register with the FloodlightProvider (IFloodlightProviderService class
 */
-public class AnomalyDetector implements IOFSwitchListener, IOFMessageListener, IFloodlightModule, Runnable {
+public class AnomalyDetector implements IOFSwitchListener, IOFMessageListener, IFloodlightModule {
 
 	/*
 	 * member variables used in AnomalyDetector
 	 * */
 	protected IStaticFlowEntryPusherService sfp;
 	protected IFloodlightProviderService floodlightProvider;
-	protected Map<Long, Short> macToPort;
+	
 	
 	
 	//Added the following
-	protected StatCollector FlowLogger;
-	protected Thread th;
+	
+	
 	protected Map<String, Map<String, OFFlowMod>> flowLog;
 	protected static Logger logger;
-    protected DetectionUnit FlowProcessor;
+    protected Map<String, DetectionUnit> Detectors;
         
 	/*
 	 * important to override 
@@ -74,16 +66,13 @@ public class AnomalyDetector implements IOFSwitchListener, IOFMessageListener, I
 			throws FloodlightModuleException 
 	{
 		floodlightProvider = context.getServiceImpl(IFloodlightProviderService.class);
-		macToPort 		   = new HashMap<Long, Short>();
-		
+		Detectors = new HashMap<String, DetectionUnit>();
 		logger = LoggerFactory.getLogger(AnomalyDetector.class);
-		FlowLogger = new StatCollector("flow");
-		
 			
 		sfp = context.getServiceImpl(IStaticFlowEntryPusherService.class);
 		
-		th = new Thread(this);
-		//th.start();
+		
+		
 		
 	}
 	
@@ -91,8 +80,16 @@ public class AnomalyDetector implements IOFSwitchListener, IOFMessageListener, I
 	@Override
 	public void addedSwitch(IOFSwitch sw) 
 	{
-		System.out.println("New SWITCH : {}" + sw.getStringId());
-		this.FlowProcessor= new DetectionUnit(sw, sfp);
+		DetectionUnit FlowProcessor=new DetectionUnit(sw, sfp);
+		Detectors.put(sw.getStringId(), FlowProcessor);
+	}
+	
+	
+	@Override
+	public void removedSwitch(IOFSwitch sw) 
+	{
+		Detectors.get(sw.getStringId()).StopMonitoring();
+		Detectors.remove(sw.getStringId());
 	}
 	
 	@Override
@@ -120,37 +117,17 @@ public class AnomalyDetector implements IOFSwitchListener, IOFMessageListener, I
        return Command.CONTINUE;
    }
 
-	
-	
-	 
 
 	
-	public void run()
-	{
-		while(true)
-		{	
-			try
-			{
-				FlowLogger.Connect();
-				Thread.sleep(10000);
-			}
-			catch(Exception e)
-			{
-				e.printStackTrace();
-			}
-		} 
-	}
+	
 			
-	/*
-	 * 
-	 * Put the functions that we don't need to change after this block	
-	 */
+	
 	
 	
 	/*
 	 * Do we need to push packet to the switch? 
 	 * push a packet-out to the switch
-	 * */
+	 * 
 	private void pushPacket(IOFSwitch sw, OFMatch match, OFPacketIn pi, short outport) 
 	{
 		// create an OFPacketOut for the pushed packet
@@ -184,8 +161,7 @@ public class AnomalyDetector implements IOFSwitchListener, IOFMessageListener, I
         } catch (IOException e) {
             logger.error("failed to write packetOut: ", e);
         }
-	}
-
+	}*/
 	/*
 	 * important to override 
 	 * put an ID for our OFMessage listener
@@ -243,12 +219,7 @@ public class AnomalyDetector implements IOFSwitchListener, IOFMessageListener, I
 		floodlightProvider.addOFSwitchListener(this);
 	}
 
-	@Override
-	public void removedSwitch(IOFSwitch sw) {
-		// TODO Auto-generated method stub
-		
-	}
-
+	
 	@Override
 	public void switchPortChanged(Long switchId) {
 		// TODO Auto-generated method stub

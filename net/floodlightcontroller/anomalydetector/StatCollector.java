@@ -13,7 +13,11 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.StringTokenizer;
 
- 
+import net.sf.json.JSONObject;
+import net.sf.json.JSONSerializer;
+
+
+
 public class StatCollector 
 {
 	private URL TargetURL = null;
@@ -26,33 +30,28 @@ public class StatCollector
 	
 	private PrintWriter LogWriter = null;
 	private String StatType = null;
-	private String StringURL = null;
+	
 	private String FileName = null;
 	
 	//Declare the constants
 	protected static String OUTPUT_FILE_NAME = "LogWriter";
 	protected static String STAT_FORMAT = "/json";
-	// we now have only one switch. But an array will help us extending to work with multiple switches
-	protected static String[] SWITCH_SOCKET = {"http://localhost:8080/wm/core/switch/all/"};  
+	
+	
+	protected static String ControllerSocket = "localhost:8080";
+	protected static String ServiceURI = "/wm/core/switch/";  
 	protected static String HTTP_POST = "POST";
 	protected static String HTTP_GET = "GET";
 	protected static String LOG_FORMAT = "<DestIP/subnet NWproto SrcIP/subnet DestPort SrcPort byteCnt pktCnt>";
-	
-	/*Constructor for collecting "statType" parameter from all switches */
-	public StatCollector(String statType)
-	{
-		 this.StatType = statType;
-		 this.FileName = StatCollector.OUTPUT_FILE_NAME + "_" + "all" + "_" + this.StatType + ".txt";
-		 this.StringURL = StatCollector.SWITCH_SOCKET[0] + this.StatType + StatCollector.STAT_FORMAT;
-	}
-	
-		
+	private  String StringURL = null;
 	/*Constructor for collecting "statType" parameter from each switch denoted by "dpid" */
-	public StatCollector(String dpid, String statType) 
+	public StatCollector(String dpid, String StatType) 
 	{
-		 this.StatType = statType;
-		 this.StringURL =  StatCollector.SWITCH_SOCKET[0] + dpid + this.StatType + StatCollector.STAT_FORMAT;
-		 this.FileName = StatCollector.OUTPUT_FILE_NAME + "_" + "dpid" + "_" + this.StatType + ".txt";
+		 this.StatType = "/" + StatType + "/";
+		 this.StringURL =  "http://" + StatCollector.ControllerSocket + StatCollector.ServiceURI + dpid + this.StatType + StatCollector.STAT_FORMAT;
+		 System.out.println(this.StringURL);
+		 this.FileName = StatCollector.OUTPUT_FILE_NAME + "_" + "dpid" + "_" + ".txt";
+		 
 	}
 	
 	
@@ -76,7 +75,7 @@ public class StatCollector
 				 }
 			 }
 		}
-		catch (Exception e) //If we don't the what could go wrong, catch all types of exceptions 
+		catch (Exception e) 
 		{
 			 e.printStackTrace();
 		}
@@ -115,24 +114,24 @@ public class StatCollector
 	{
 		String output;
 		String parsedOutput;
+		JSONObject test; 
 		BufferReader = new BufferedReader(new InputStreamReader(input));
 		this.OpenLogWriter();
 		try 
 		{
+			
 			while ((output = BufferReader.readLine()) != null) 
 			{
-				/* 
-				 * Commenting out this line. If we are printing on a file, printing on the console at the same time
-				 * is unnecessary and it will slow the system down. But please feel free to uncomment it for debugging
-				 * System.out.println(output);  
-				 * 
-				 * */ 
-				System.out.println("OUTPUT"+output); 
+				output = "{'foo':'bar', 'coolness':2.0, 'altitude':39000, 'pilot':{'firstName':'Buzz',          'lastName':'Aldrin'}, 'mission':'apollo 11'}";
+				test = (JSONObject)JSONSerializer.toJSON(output);
+				
+				//System.out.println(test.get("priority"));
+				
 				parsedOutput = this.ParseResult(output);
-				//this.LogWriter.append(output);
-				this.LogWriter.println(LOG_FORMAT);
+				this.LogWriter.println(StatCollector.LOG_FORMAT);
 				this.LogWriter.append(parsedOutput);
 			}
+			
 		} 
 		catch (IOException e) 
 		{
@@ -145,7 +144,6 @@ public class StatCollector
 	{
 		String result = "";
 		StringTokenizer tokenizer = new StringTokenizer(input, "[ :,\"{}\\[\\]]+");
-		
 		while (tokenizer.hasMoreElements()) 
 		{
 		//System.out.println(tokenizer.nextToken());

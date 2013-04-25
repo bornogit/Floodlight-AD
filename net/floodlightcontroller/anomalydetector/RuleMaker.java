@@ -4,13 +4,17 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -20,6 +24,8 @@ import org.openflow.protocol.OFMessage;
 import org.openflow.protocol.OFPacketIn;
 import org.openflow.protocol.OFPacketOut;
 import org.openflow.protocol.OFPort;
+import org.openflow.protocol.OFStatisticsReply;
+import org.openflow.protocol.OFStatisticsRequest;
 import org.openflow.protocol.OFType;
 import org.openflow.protocol.action.OFAction;
 import org.openflow.protocol.action.OFActionDataLayerDestination;
@@ -34,6 +40,9 @@ import org.openflow.protocol.action.OFActionTransportLayerDestination;
 import org.openflow.protocol.action.OFActionTransportLayerSource;
 import org.openflow.protocol.action.OFActionVirtualLanIdentifier;
 import org.openflow.protocol.action.OFActionVirtualLanPriorityCodePoint;
+import org.openflow.protocol.statistics.OFFlowStatisticsRequest;
+import org.openflow.protocol.statistics.OFStatistics;
+import org.openflow.protocol.statistics.OFStatisticsType;
 import org.openflow.util.HexString;
 import org.openflow.util.U16;
 import org.slf4j.Logger;
@@ -95,6 +104,8 @@ public class RuleMaker
 	protected static short FLOWMOD_DEFAULT_IDLE_TIMEOUT = 20; // in seconds
     protected static short FLOWMOD_DEFAULT_HARD_TIMEOUT = 0; // infinite
 	
+    protected Map<String, OFFlowMod> Stats = new HashMap<String, OFFlowMod>();
+    
 	public RuleMaker(IOFSwitch sw, IStaticFlowEntryPusherService sfp)
 	{
 		this.sw = sw;
@@ -102,11 +113,17 @@ public class RuleMaker
 	}
 	
 	
-	private void PushFlowMod()
+	public void PushFlowMod()
 	{
 		this.sfp.addFlow(this.FlowName, this.rule, this.sw.getStringId());
 	}
 	
+	
+	
+	private void RemoveFlowMod()
+	{
+		this.sfp.deleteFlow(this.FlowName);
+	}
 	public void SetParams(int ClusterID, String SrcIP, String DstIP, short SrcPort, short DstPort, TrafficCluster.TrafficType Protocol)
 	{
 		this.SrcIP = SrcIP;
