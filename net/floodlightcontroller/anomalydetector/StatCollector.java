@@ -33,10 +33,6 @@ public class StatCollector
 	private URL TargetURL = null;
 	private HttpURLConnection conn = null;
 	private BufferedReader BufferReader = null;
-	/*
-	 *  Use more unambiguous name e.g. LogWriter instead of log. So that you can have LogWriter and LogFile - two different
-	 *  types of objects
-	 */
 	
 	private PrintWriter LogWriter = null;
 	private String StatType = null;
@@ -49,7 +45,7 @@ public class StatCollector
 	
 	
 	protected static String ControllerSocket = "localhost:8080";
-	protected static String ServiceURI = "/wm/staticflowentrypusher/list/";  
+	protected static String ServiceURI = "/wm/core/switch";  
 	protected static String HTTP_POST = "POST";
 	protected static String HTTP_GET = "GET";
 	protected static String LOG_FORMAT = "<DestIP/subnet NWproto SrcIP/subnet DestPort SrcPort byteCnt pktCnt>";
@@ -60,7 +56,16 @@ public class StatCollector
 		 this.StatType = "/" + StatType + "/";
 		 this.StringURL =  "http://" + StatCollector.ControllerSocket + StatCollector.ServiceURI + dpid +  StatCollector.STAT_FORMAT;
 		 System.out.println(this.StringURL);
-		 this.FileName = StatCollector.OUTPUT_FILE_NAME + "_" + "dpid" + "_" + ".txt";
+		 this.FileName = StatCollector.OUTPUT_FILE_NAME + "_" + dpid + "_" + ".txt";
+		 
+	}
+	
+	public StatCollector(String StatType) 
+	{
+		 this.StatType = "/" + StatType + "/";
+		 this.StringURL =  "http://" + StatCollector.ControllerSocket + StatCollector.ServiceURI + "all" + this.StatType + StatCollector.STAT_FORMAT;
+		 System.out.println(this.StringURL);
+		 this.FileName = StatCollector.OUTPUT_FILE_NAME + "_" + "all" + "_" + StatType + ".txt";
 		 
 	}
 	
@@ -123,6 +128,7 @@ public class StatCollector
 	private void LogResponse(InputStream input)
 	{
 		String output;
+		String parsedOutput;
 		
 		BufferReader = new BufferedReader(new InputStreamReader(input));
 		this.OpenLogWriter();
@@ -133,9 +139,13 @@ public class StatCollector
 			{
 					
 					
-				this.ParseResult(output);
-				//this.LogWriter.println(StatCollector.LOG_FORMAT);
-				//this.LogWriter.(parsedOutput);
+				parsedOutput = this.ParseResult(output);
+				
+				/*We can just write it into a file for perhaps debugging purposes...
+				 * Feel free to comment it out again
+				 */
+				this.LogWriter.println(StatCollector.LOG_FORMAT);
+				this.LogWriter.append(parsedOutput);
 			}
 			
 		} 
@@ -148,8 +158,8 @@ public class StatCollector
 	
 	private String ParseResult(String input)
 	{
-		Gson gson = new Gson();
-		String JsonInput= gson.toJson(input);
+		//Gson gson = new Gson();
+		//String JsonInput= gson.toJson(input);
 		//Type mapType = new TypeToken<Map<String,Map<String, String>>>() {}.getType();
 		//Map<String,Map<String, String>> map = gson.fromJson(JsonInput, mapType);
 		
@@ -215,6 +225,7 @@ public class StatCollector
 			{
 				result = result + tokenizer.nextToken();
 				result = result + "> ";
+				result = result + "\r\n";
 			}
 		}
 		
