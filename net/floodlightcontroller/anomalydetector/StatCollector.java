@@ -6,15 +6,25 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.lang.reflect.Type;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.StringTokenizer;
 
-import net.sf.json.JSONObject;
-import net.sf.json.JSONSerializer;
+import org.simpleframework.http.Response;
+
+
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+
 
 
 
@@ -39,7 +49,7 @@ public class StatCollector
 	
 	
 	protected static String ControllerSocket = "localhost:8080";
-	protected static String ServiceURI = "/wm/core/switch/";  
+	protected static String ServiceURI = "/wm/staticflowentrypusher/list/";  
 	protected static String HTTP_POST = "POST";
 	protected static String HTTP_GET = "GET";
 	protected static String LOG_FORMAT = "<DestIP/subnet NWproto SrcIP/subnet DestPort SrcPort byteCnt pktCnt>";
@@ -48,7 +58,7 @@ public class StatCollector
 	public StatCollector(String dpid, String StatType) 
 	{
 		 this.StatType = "/" + StatType + "/";
-		 this.StringURL =  "http://" + StatCollector.ControllerSocket + StatCollector.ServiceURI + dpid + this.StatType + StatCollector.STAT_FORMAT;
+		 this.StringURL =  "http://" + StatCollector.ControllerSocket + StatCollector.ServiceURI + dpid +  StatCollector.STAT_FORMAT;
 		 System.out.println(this.StringURL);
 		 this.FileName = StatCollector.OUTPUT_FILE_NAME + "_" + "dpid" + "_" + ".txt";
 		 
@@ -113,8 +123,7 @@ public class StatCollector
 	private void LogResponse(InputStream input)
 	{
 		String output;
-		String parsedOutput;
-		JSONObject test; 
+		
 		BufferReader = new BufferedReader(new InputStreamReader(input));
 		this.OpenLogWriter();
 		try 
@@ -122,14 +131,11 @@ public class StatCollector
 			
 			while ((output = BufferReader.readLine()) != null) 
 			{
-				output = "{'foo':'bar', 'coolness':2.0, 'altitude':39000, 'pilot':{'firstName':'Buzz',          'lastName':'Aldrin'}, 'mission':'apollo 11'}";
-				test = (JSONObject)JSONSerializer.toJSON(output);
-				
-				//System.out.println(test.get("priority"));
-				
-				parsedOutput = this.ParseResult(output);
-				this.LogWriter.println(StatCollector.LOG_FORMAT);
-				this.LogWriter.append(parsedOutput);
+					
+					
+				this.ParseResult(output);
+				//this.LogWriter.println(StatCollector.LOG_FORMAT);
+				//this.LogWriter.(parsedOutput);
 			}
 			
 		} 
@@ -142,8 +148,15 @@ public class StatCollector
 	
 	private String ParseResult(String input)
 	{
+		Gson gson = new Gson();
+		String JsonInput= gson.toJson(input);
+		//Type mapType = new TypeToken<Map<String,Map<String, String>>>() {}.getType();
+		//Map<String,Map<String, String>> map = gson.fromJson(JsonInput, mapType);
+		
+		
 		String result = "";
 		StringTokenizer tokenizer = new StringTokenizer(input, "[ :,\"{}\\[\\]]+");
+	
 		while (tokenizer.hasMoreElements()) 
 		{
 		//System.out.println(tokenizer.nextToken());
@@ -204,27 +217,33 @@ public class StatCollector
 				result = result + "> ";
 			}
 		}
-
 		
+		System.out.println(result);
 		return result;
 	}
 	
-	private void CloseHttpConn()
+	public List<StatResult> GetCounts()
 	{
-		if (this.conn != null)
-		{
-			try 
-			{
-				this.conn.disconnect();
-			}
-			catch (Exception e)
-			{
-				e.printStackTrace();
-			}
-		}
+		this.Connect();
+		List<StatResult> Counts = new ArrayList<StatResult>();
 		
+		//foreach 
+		
+		return Counts;
 	}
 	
+	public class StatResult
+	{
+		String FlowName;
+		int PacketCount;
+		int ByteCount;
+		public StatResult(String FlowName, int PacketCount, int ByteCount)
+		{
+			this.FlowName = FlowName;
+			this.PacketCount = PacketCount;
+			this.ByteCount = ByteCount;
+		}
+	}
 	
  
 }
