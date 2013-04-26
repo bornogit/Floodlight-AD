@@ -1,22 +1,9 @@
 package net.floodlightcontroller.anomalydetector;
 
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
 
 import org.openflow.protocol.OFFlowMod;
 import org.openflow.protocol.OFMatch;
@@ -79,8 +66,6 @@ import net.floodlightcontroller.util.OFMessageDamper;
 
 public class RuleMaker 
 {
-	private String SwitchDpid = null;
-	
 	private Map<String, String> Actions = null;
 	
 	private short Priority;
@@ -124,7 +109,8 @@ public class RuleMaker
 	{
 		this.sfp.deleteFlow(this.FlowName);
 	}
-	public void SetParams(int ClusterID, String SrcIP, String DstIP, short SrcPort, short DstPort, TrafficCluster.TrafficType Protocol)
+	
+	public void SetParams(String ClusterLabel, String SrcIP, String DstIP, short SrcPort, short DstPort, TrafficCluster.TrafficType Protocol)
 	{
 		this.SrcIP = SrcIP;
 		this.DstIP = DstIP;
@@ -142,7 +128,7 @@ public class RuleMaker
 				this.Protocol = IPv4.PROTOCOL_ICMP;
 				break;
 		}
-		this.FlowName = "flow-"+ Integer.toString(ClusterID);
+		this.FlowName = ClusterLabel;
 	
 	}
 	
@@ -159,29 +145,21 @@ public class RuleMaker
 		
         //match.loadFromPacket(pi.getPacketData(), pi.getInPort());
        
-        
-              
-       	// create the rule and specify it's an ADD rule
-       	rule = new OFFlowMod();
+      	rule = new OFFlowMod();
 		rule.setType(OFType.FLOW_MOD); 			
 		rule.setCommand(OFFlowMod.OFPFC_ADD);
  		rule.setMatch(FlowMatch);
 		rule.setIdleTimeout(RuleMaker.FLOWMOD_DEFAULT_IDLE_TIMEOUT);
  		rule.setHardTimeout(RuleMaker.FLOWMOD_DEFAULT_HARD_TIMEOUT);
  		rule.setBufferId(OFPacketOut.BUFFER_ID_NONE);
- 	     
- 	    // set of actions to apply to this rule
- 		ArrayList<OFAction> actions = new ArrayList<OFAction>();
+  		ArrayList<OFAction> actions = new ArrayList<OFAction>();
 // 		OFAction outputTo = new OFActionOutput((short)2);
  		rule.setActions(actions);
  		rule.setPriority(this.Priority);	 			
-		// specify the length of the flow structure created
 		rule.setLength((short) (OFFlowMod.MINIMUM_LENGTH + OFActionOutput.MINIMUM_LENGTH)); 			
-		
-		
-    
 	}
 	
+
 	public void InstallRule()
 	{
 		this.CreateMod();

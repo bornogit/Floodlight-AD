@@ -5,7 +5,7 @@ import java.util.List;
 import net.floodlightcontroller.packet.Ethernet;
 public class TrafficCluster 
 {
-	private String ClusterLabel;
+	public String ClusterLabel;
 	private int ClusterID;
 	private String SourceIP=null;
 	private String DestIP=null;
@@ -17,14 +17,15 @@ public class TrafficCluster
 	}
 	private int TrafficSize;
 	private int PacketCount;
-	private int TotalContribution;
+	public double TotalPacketContribution;
+	public double TotalByteContribution;
 	private Boolean IsBaseType=true;
-	private Boolean NeedDPI;
+	public Boolean NeedDPI;
 	private int NumChildren=0;
 	private TrafficType Protocol;
 	
 	private RuleMaker Rule;
-	List<TrafficCluster> ChildCluster = new ArrayList<TrafficCluster>();
+	List<Integer> ChildCluster = new ArrayList<Integer>();
 	
 	public TrafficCluster(Boolean HasChild, String SourceIP, String DestIP,
 				short SourcePort, short DestPort, TrafficType Protocol, int ClusterID)
@@ -38,10 +39,11 @@ public class TrafficCluster
 		this.NumChildren = 0;
 		this.NeedDPI = false;
 		this.TrafficSize =0;
-		this.TotalContribution =0;
+		this.TotalPacketContribution =0;
 		this.PacketCount =0;
 		
 		this.ClusterID = ClusterID;
+		this.ClusterLabel = "Cluster-"+this.ClusterID;
 		if (HasChild)
 		{
 			this.IsBaseType = false;
@@ -49,8 +51,9 @@ public class TrafficCluster
 		
 	}
 
-	private void AddChildCluster()
+	private void AddChildCluster(int ClusterID)
 	{
+		this.ChildCluster.add(ClusterID);
 		this.NumChildren++;
 	}
 	
@@ -58,6 +61,7 @@ public class TrafficCluster
 	{
 		if (this.NumChildren>0)
 		{
+			this.ChildCluster.remove(ClusterID);
 			this.NumChildren--;
 		}
 	}
@@ -65,14 +69,20 @@ public class TrafficCluster
 	public void CreateFlowMod(RuleMaker Rule)
 	{
 		this.Rule = Rule;
-		this.Rule.SetParams(this.ClusterID,this.SourceIP, this.DestIP, this.SourcePort, this.DestPort, this.Protocol);
+		this.Rule.SetParams(this.ClusterLabel,this.SourceIP, this.DestIP, this.SourcePort, this.DestPort, this.Protocol);
 		this.Rule.InstallRule();
 	}
 	
-	private void UpdateCount()
+	public void UpdateCount(int PacketCout, int ByteCount)
 	{
-		
+		this.PacketCount += PacketCount;
+		this.TrafficSize += ByteCount;
 	}
 	
+	public void CalculateContribution(int TotalPacketCount, int TotalByteCount)
+	{
+		this.TotalByteContribution = (this.TrafficSize/TotalByteCount) * 100;
+		this.TotalPacketContribution = (this.PacketCount/TotalPacketCount) * 100;
+	}
 	
 }

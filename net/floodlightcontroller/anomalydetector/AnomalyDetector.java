@@ -68,12 +68,7 @@ public class AnomalyDetector implements IOFSwitchListener, IOFMessageListener, I
 		floodlightProvider = context.getServiceImpl(IFloodlightProviderService.class);
 		Detectors = new HashMap<String, DetectionUnit>();
 		logger = LoggerFactory.getLogger(AnomalyDetector.class);
-			
 		sfp = context.getServiceImpl(IStaticFlowEntryPusherService.class);
-		
-		
-		
-		
 	}
 	
 	
@@ -117,13 +112,6 @@ public class AnomalyDetector implements IOFSwitchListener, IOFMessageListener, I
        return Command.CONTINUE;
    }
 
-
-	
-	
-			
-	
-	
-	
 	/*
 	 * Do we need to push packet to the switch? 
 	 * push a packet-out to the switch
