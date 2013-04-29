@@ -23,9 +23,10 @@ import org.simpleframework.http.Response;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
-
-
 
 
 public class StatCollector 
@@ -34,43 +35,32 @@ public class StatCollector
 	private HttpURLConnection conn = null;
 	private BufferedReader BufferReader = null;
 	
-	private PrintWriter LogWriter = null;
-	private String StatType = null;
-	
-	private String FileName = null;
-	
+		
 	//Declare the constants
-	protected static String OUTPUT_FILE_NAME = "LogWriter";
+	
 	protected static String STAT_FORMAT = "/json";
-	
-	
+		
 	protected static String ControllerSocket = "localhost:8080";
-	protected static String ServiceURI = "/wm/core/switch";  
-	protected static String HTTP_POST = "POST";
+	protected static String ServiceURI = "/wm/core/switch/";  
 	protected static String HTTP_GET = "GET";
-	protected static String LOG_FORMAT = "<DestIP/subnet NWproto SrcIP/subnet DestPort SrcPort byteCnt pktCnt>";
-	private  String StringURL = null;
+	
+	
+	
+	private String StatType;
+	private  String StringURL;
+	private String SwitchDPID;
 	/*Constructor for collecting "statType" parameter from each switch denoted by "dpid" */
 	public StatCollector(String dpid, String StatType) 
 	{
 		 this.StatType = "/" + StatType + "/";
-		 this.StringURL =  "http://" + StatCollector.ControllerSocket + StatCollector.ServiceURI + dpid +  StatCollector.STAT_FORMAT;
-		 System.out.println(this.StringURL);
-		 this.FileName = StatCollector.OUTPUT_FILE_NAME + "_" + dpid + "_" + ".txt";
+		 this.StringURL =  "http://" + StatCollector.ControllerSocket + StatCollector.ServiceURI + dpid + this.StatType +StatCollector.STAT_FORMAT;
 		 
-	}
-	
-	public StatCollector(String StatType) 
-	{
-		 this.StatType = "/" + StatType + "/";
-		 this.StringURL =  "http://" + StatCollector.ControllerSocket + StatCollector.ServiceURI + "all" + this.StatType + StatCollector.STAT_FORMAT;
-		 System.out.println(this.StringURL);
-		 this.FileName = StatCollector.OUTPUT_FILE_NAME + "_" + "all" + "_" + StatType + ".txt";
-		 
+		 this.SwitchDPID = dpid;
 	}
 	
 	
-	public void Connect()
+	
+	public List<StatResult> GetStats()
 	{
 		try 
 		{
@@ -86,7 +76,7 @@ public class StatCollector
 				 }
 				 else
 				 {
-					this.LogResponse(this.conn.getInputStream()); 
+					return this.ParseLogResponse(this.conn.getInputStream()); 
 				 }
 			 }
 		}
@@ -94,168 +84,59 @@ public class StatCollector
 		{
 			 e.printStackTrace();
 		}
+		return new ArrayList<StatResult>(); // for now return an empty list in error
 	}
 	
 	
-	private void OpenLogWriter()
+	private List<StatResult> ParseLogResponse(InputStream RestReply)
 	{
-		try 
-		{
-		   LogWriter = new PrintWriter(this.FileName);
-		} 
-		catch (FileNotFoundException e)
-		{
-			e.printStackTrace();
-		}
-	}
-	
-	private void CloseLogWriter()
-	{
-		if (this.LogWriter != null)
-		{
-			try
-			{
-				this.LogWriter.close();
-			}
-			catch (Exception e)
-			{
-				e.printStackTrace();
-			}
-		}
-	}
-	
-	/*Method to LogWriter the response */
-	private void LogResponse(InputStream input)
-	{
-		String output;
-		String parsedOutput;
+		String RestReplyString;
+		String[] FlowStats;
+		String FlowStatsString;
+		BufferReader = new BufferedReader(new InputStreamReader(RestReply));
+		JsonParser JsonReplyParser = new JsonParser();
+		JsonObject JsonReplyObj;
+		List<StatResult> StatResults = new ArrayList<StatResult>();
 		
-		BufferReader = new BufferedReader(new InputStreamReader(input));
-		this.OpenLogWriter();
 		try 
 		{
-			
-			while ((output = BufferReader.readLine()) != null) 
-			{
-					
-					
-				parsedOutput = this.ParseResult(output);
-				
-				/*We can just write it into a file for perhaps debugging purposes...
-				 * Feel free to comment it out again
-				 */
-				this.LogWriter.println(StatCollector.LOG_FORMAT);
-				this.LogWriter.append(parsedOutput);
-			}
-			
+				RestReplyString = BufferReader.readLine(); 
+				JsonReplyObj = JsonReplyParser.parse(RestReplyString).getAsJsonObject();
+				FlowStatsString = JsonReplyObj.get(this.SwitchDPID).toString();
+				StatResult TempResult;
+				if (FlowStatsString.length()>2)
+				{
+					FlowStatsString = FlowStatsString.substring(1, FlowStatsString.length()-1);
+					FlowStatsString = FlowStatsString.replaceAll("\\},\\{", "\\}BREAK\\{");
+					FlowStats = FlowStatsString.split("BREAK");
+					for (int j = 0; j<FlowStats.length; j++)
+					{
+						TempResult = new StatResult();
+						String FlowStat = FlowStats[j];
+						JsonReplyObj = JsonReplyParser.parse(FlowStat).getAsJsonObject();
+						TempResult.ClusterID = Long.valueOf(JsonReplyObj.get("cookie").toString());
+						TempResult.PacketCount = JsonReplyObj.get("packetCount").getAsLong();
+						TempResult.ByteCount = JsonReplyObj.get("byteCount").getAsDouble()/1024;
+						StatResults.add(TempResult);
+					}
+				}
 		} 
 		catch (IOException e) 
 		{
 			e.printStackTrace();
 		}
-		this.CloseLogWriter();
+		
+		return StatResults;
 	}
 	
-	private String ParseResult(String input)
-	{
-		//Gson gson = new Gson();
-		//String JsonInput= gson.toJson(input);
-		//Type mapType = new TypeToken<Map<String,Map<String, String>>>() {}.getType();
-		//Map<String,Map<String, String>> map = gson.fromJson(JsonInput, mapType);
 		
-		
-		String result = "";
-		StringTokenizer tokenizer = new StringTokenizer(input, "[ :,\"{}\\[\\]]+");
-	
-		while (tokenizer.hasMoreElements()) 
-		{
-		//System.out.println(tokenizer.nextToken());
-			String temp;
-			temp = tokenizer.nextToken();
-			if(temp.equals("networkDestination"))
-			{
-				result = result + " <";
-				result = result + tokenizer.nextToken();
-				result = result + "/";
-			}
-			
-			if(temp.equals("networkDestinationMaskLen"))
-			{
-				result = result + tokenizer.nextToken();
-				result = result + " ";
-			}
-			
-			if(temp.equals("networkProtocol"))
-			{
-				result = result + tokenizer.nextToken();
-				result = result + " ";
-			}
-			
-			if(temp.equals("networkSource"))
-			{
-				result = result + tokenizer.nextToken();
-				result = result + "/";
-			}
-			
-			if(temp.equals("networkSourceMaskLen"))
-			{
-				result = result + tokenizer.nextToken();
-				result = result + " ";
-			}
-			
-			if(temp.equals("transportDestination"))
-			{
-				result = result + tokenizer.nextToken();
-				result = result + " ";
-			}
-			
-			if(temp.equals("transportSource"))
-			{
-				result = result + tokenizer.nextToken();
-				result = result + " ";
-			}
-			
-			if(temp.equals("byteCount"))
-			{
-				result = result + tokenizer.nextToken();
-				result = result + " ";
-			}
-			
-			if(temp.equals("packetCount"))
-			{
-				result = result + tokenizer.nextToken();
-				result = result + "> ";
-				result = result + "\r\n";
-			}
-		}
-		
-		System.out.println(result);
-		return result;
-	}
-	
-	public List<StatResult> GetCounts()
-	{
-		this.Connect();
-		List<StatResult> Counts = new ArrayList<StatResult>();
-		
-		//foreach 
-		
-		return Counts;
-	}
-	
 	public class StatResult
 	{
-		String FlowName;
-		int PacketCount;
-		int ByteCount;
-		public StatResult(String FlowName, int PacketCount, int ByteCount)
-		{
-			this.FlowName = FlowName;
-			this.PacketCount = PacketCount;
-			this.ByteCount = ByteCount;
-		}
+		public long ClusterID;
+		public long PacketCount;
+		public double ByteCount;
+
 	}
-	
  
 }
  

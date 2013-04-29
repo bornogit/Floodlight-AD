@@ -1,30 +1,24 @@
+
 Project Tasks
-
-1. Modify the StatCollector 
-	- To add the parser
-	- To chreck everything is working 
-
-2. Separate Rule handling from the main class, that is use RuleHandler. So that it can be used by other classes 
-3. Come up with the Central Logic
+1. Come up with the Central Logic
 	- Deciding the base rules
 	- Monitoring the log file
 	- Detect Anomaly 
 	- Add new rules if needed 
+	- Analyze the collected data in the background 
 
-4. Analyze the collected data in the background 
 
-5. Investigate what more mininet can do for us to help with the simulation
 
-Notes -
 
-1. We tried to use IStaticFlowEntryPusherService to add and delete flow rules as well as to grab statistics from the switch. 
-	But the output we got did not have the desired fields in it. So we decided to go with a custom StatCollector which runs in
-	the background.
+Workflow
 
-Assumptions
-1. Use the learning switch module that came in with the floodlight. We are assuming the switch(es) know how to route packets.
-   So this module does not worry about routing.
+1. Start the controller with the modified learning switch and anomaly detector modules
+2. Packet comes in any port the modified learning switch installs rules for every source destination ip pair with infinite hard timeout and lowest priority
+3. Detection unit gets the flows using the rest api. 
+4. For every different flow the detection unit with the help of the stat collector, extracts five tuple and two counts and the cookie. 
+5. For each flow gets the total flow count and contribution 
+6. If for any flow the contribution is above a threshold, a cluster is made and the rest is collapsed to a more general cluster when possible. 
+7. For the suspicious cluster will have all the extracted information. 
 
-Questions 
 
-1. 
+
