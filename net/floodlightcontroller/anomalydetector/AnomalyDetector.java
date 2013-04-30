@@ -63,7 +63,7 @@ public class AnomalyDetector implements IOFSwitchListener, IOFMessageListener, I
 	//Added the following
 	
 	
-	protected Map<Long, Short> MacToPort;
+	protected Map<String, Map<Long, Short>> MacToPortInSwitch;
 	protected static Logger logger;
     public static Map<String, DetectionUnit> Detectors;
         
@@ -77,7 +77,7 @@ public class AnomalyDetector implements IOFSwitchListener, IOFMessageListener, I
 	{
 		floodlightProvider = context.getServiceImpl(IFloodlightProviderService.class);
 		Detectors = new HashMap<String, DetectionUnit>();
-		MacToPort = new HashMap<Long, Short>();
+		MacToPortInSwitch = new HashMap<String, Map<Long, Short>>();
 		logger = LoggerFactory.getLogger(AnomalyDetector.class);
 		sfp = context.getServiceImpl(IStaticFlowEntryPusherService.class);
 	}
@@ -88,6 +88,7 @@ public class AnomalyDetector implements IOFSwitchListener, IOFMessageListener, I
 	{
 		DetectionUnit FlowProcessor=new DetectionUnit(sw, sfp);
 		Detectors.put(sw.getStringId(), FlowProcessor);
+		MacToPortInSwitch.put(sw.getStringId(), new HashMap<Long, Short>());
 	}
 	
 	
@@ -96,6 +97,7 @@ public class AnomalyDetector implements IOFSwitchListener, IOFMessageListener, I
 	{
 		Detectors.get(sw.getStringId()).StopMonitoring();
 		Detectors.remove(sw.getStringId());
+		MacToPortInSwitch.remove(sw.getStringId());
 	}
 		@Override
 	public void switchPortChanged(Long switchId) {
@@ -171,11 +173,11 @@ public class AnomalyDetector implements IOFSwitchListener, IOFMessageListener, I
         
          // Now output flow-mod and/or packet
         
-        if (!MacToPort.containsKey(sourceMac))
+        if (!MacToPortInSwitch.containsKey(sourceMac))
         {
-        	MacToPort.put(sourceMac, pi.getInPort());
+        	MacToPortInSwitch.get(sw.getStringId()).put(sourceMac, pi.getInPort());
         }
-        Short outPort = MacToPort.get(destMac);
+        Short outPort = MacToPortInSwitch.get(sw.getStringId()).get(destMac);
         if (outPort == null) 
         {
         	this.pushPacket(sw, match, pi, OFPort.OFPP_FLOOD.getValue());

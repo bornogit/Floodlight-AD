@@ -31,7 +31,7 @@ public class DetectionUnit
 	private double  TotalByteCount;
 	public int ClusterID=0;
 
-	public static final double CLUSTER_THRESHOLD = 20;
+	
 	
 	private RuleMaker RuleManager;
 	

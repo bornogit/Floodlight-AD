@@ -10,6 +10,7 @@ import net.floodlightcontroller.packet.IPv4;
 public class TrafficCluster 
 {
 	public static String ClusterLabel = "Cluster-";
+	public static double CLUSTER_THRESHOLD = 20;
 	public long ClusterID;
 	public String SourceIP;
 	public String DestIP;
@@ -110,7 +111,7 @@ public class TrafficCluster
 	{
 		this.TotalByteContribution = (this.ByteCount* 100.00)/TotalByteCount;
 		this.TotalPacketContribution = (this.PacketCount*100.00)/TotalPacketCount;
-		if (this.TotalByteContribution >= DetectionUnit.CLUSTER_THRESHOLD)
+		if (this.TotalByteContribution >= TrafficCluster.CLUSTER_THRESHOLD)
 		{
 			this.NeedDPI = true;
 		}
