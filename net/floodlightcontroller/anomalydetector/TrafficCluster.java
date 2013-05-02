@@ -12,11 +12,14 @@ public class TrafficCluster
 	public static String ClusterLabel = "Cluster-";
 	public static double CLUSTER_THRESHOLD = 20;
 	public long ClusterID;
-	public String SourceIP;
-	public String DestIP;
-	public String SourcePort;
-	public String DestPort;
+	public int SourceIP;
+	public int DestIP;
+	public Short SourcePort;
+	public Short DestPort;
 	public TrafficType Protocol;
+	public int DestMask;
+	public int SrcMask;
+	public List<Integer> ParentClusterIDs;
 	
 	public static enum TrafficType
 	{
@@ -26,41 +29,36 @@ public class TrafficCluster
 	private long PacketCount;
 	public double TotalPacketContribution;
 	public double TotalByteContribution;
-	private Boolean IsBaseType=true;
-	public Boolean NeedDPI;
-	private int NumChildren=0;
 	
 	OFMatch ClusterSignature;
-	private RuleMaker Rule;
+	
+	public boolean IsBaseType = false;
+	
 	List<Integer> ChildCluster = new ArrayList<Integer>();
 	
-	public TrafficCluster(OFMatch Match, Boolean HasChild, int ClusterID)
+	public TrafficCluster(OFMatch Match, long ClusterID)
 	{
 		
 		this.ClusterSignature = Match;
-		this.NumChildren = 0;
-		this.NeedDPI = false;
 		this.ByteCount =0;
 		this.TotalPacketContribution =0.0;
 		this.TotalByteContribution =0.0;
 		this.PacketCount =0;
-		this.ClusterID = (long)ClusterID;
+		this.ClusterID = ClusterID;
 		
-		if (HasChild)
-		{
-			this.IsBaseType = false;
-		}
-		
+		this.ParentClusterIDs = new ArrayList();
 		this.ExtractFields();
 	}
 	
 	private void ExtractFields()
 	{
-		this.SourceIP = IPv4.fromIPv4Address(this.ClusterSignature.getNetworkSource());
-		this.DestIP = IPv4.fromIPv4Address(this.ClusterSignature.getNetworkDestination());
-		this.SourcePort = Short.toString(this.ClusterSignature.getTransportSource());
-		this.DestPort = Short.toString(this.ClusterSignature.getTransportDestination());
-		TrafficCluster.TrafficType Protocol;
+		this.SourceIP = this.ClusterSignature.getNetworkSource();
+		this.DestIP = this.ClusterSignature.getNetworkDestination();
+		this.SourcePort =this.ClusterSignature.getTransportSource();
+		this.DestPort = this.ClusterSignature.getTransportDestination();
+		this.DestMask = this.ClusterSignature.getNetworkDestinationMaskLen();
+		this.SrcMask = this.ClusterSignature.getNetworkSourceMaskLen();
+		
 		switch (this.ClusterSignature.getNetworkProtocol())
 		{
 			case IPv4.PROTOCOL_TCP:
@@ -78,28 +76,6 @@ public class TrafficCluster
 		}
 	}
 
-	private void AddChildCluster(int ClusterID)
-	{
-		this.ChildCluster.add(ClusterID);
-		this.NumChildren++;
-	}
-	
-	private void RemoveChildCluster()
-	{
-		if (this.NumChildren>0)
-		{
-			this.ChildCluster.remove(ClusterID);
-			this.NumChildren--;
-		}
-	}
-	
-	public void CreateFlowMod(RuleMaker Rule)
-	{
-		this.Rule = Rule;
-		//Will create new deeper cluster from the existing match
-	//	this.Rule.SetParams(this.ClusterLabel,this.SourceIP, this.DestIP, this.SourcePort, this.DestPort, this.Protocol);
-		this.Rule.InstallRule();
-	}
 	
 	public void UpdateCount( long PacketCount, double ByteCount)
 	{
@@ -113,8 +89,12 @@ public class TrafficCluster
 		this.TotalPacketContribution = (this.PacketCount*100.00)/TotalPacketCount;
 		if (this.TotalByteContribution >= TrafficCluster.CLUSTER_THRESHOLD)
 		{
-			this.NeedDPI = true;
+			this.IsBaseType = true;
 		}
 	}
 	
 }
+
+
+
+
