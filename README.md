@@ -13,8 +13,15 @@ Test Instructions
 2. Try pinging or use iperf. 
 3. Read data from the log file 
 
-Going with Approach 2 
 
+Approach 1
+- Create General learning switch rule 
+- Start with general rules
+- Keep an eye on the traffic size
+- Expand and DPI and install more rules when traffic size of a cluster exceeds threshold
+
+
+Approach 2 (May 3 Commit)
 - Install general learning switch rules 
 - Keep collecting data and create general clusters 
 - Upon detecting anomaly 
@@ -23,14 +30,8 @@ Going with Approach 2
 	- Get the packet information and get keep creating more specific flows with the packet attributes 
 		- For each flow there will be a separate cluster 
 		- For the unique flow it will the cluster size is significant keep that rule 
-		- Delte otheres 
 		
-Questions We Ask From This Module 
-
-In the given network 
-	- Is there any destination host that's receiving ununusal traffic on a fixed port from a fixed source host?
-	- Is there any destination host that's receiing unusual traffic on a fixed port from a set of different sources?
-	- Is there any destination host 
+		
 
 Update April 28 Commit 
 
@@ -42,3 +43,13 @@ Update April 28 Commit
 6. Relate Flow with Clusters 
 7. Miscellanious
 
+Update May 3 Commit 
+Sample Output
+
+Cluster--0	 ---- 	*	 ---- 	*	 ---- 	*	 ---- 	*	 ---- 	ALL	 ---- 	100.0% 	 ---- 	100.0% 
+Cluster--3	 ---- 	*	 ---- 	*	 ---- 	*	 ---- 	*	 ---- 	ICMP	 ---- 	100.0% 	 ---- 	100.0% 
+Cluster--10	 ---- 	10.0.0.2/0	 ---- 	10.0.0.1/0	 ---- 	0	 ---- 	0	 ---- 	ICMP	 ---- 	25.0% 	 ---- 	25.0% 
+Cluster--11	 ---- 	10.0.0.1/0	 ---- 	10.0.0.2/0	 ---- 	0	 ---- 	0	 ---- 	ICMP	 ---- 	25.0% 	 ---- 	25.0% 
+Cluster--12	 ---- 	10.0.0.3/0	 ---- 	10.0.0.2/0	 ---- 	0	 ---- 	0	 ---- 	ICMP	 ---- 	25.0% 	 ---- 	25.0% 
+Cluster--13	 ---- 	10.0.0.2/0	 ---- 	10.0.0.3/0	 ---- 	0	 ---- 	0	 ---- 	TCP	 ---- 	25.0% 	 ---- 	25.0% 
+ Total Number of Packets: 156 Total Traffic: 0.015 MB 

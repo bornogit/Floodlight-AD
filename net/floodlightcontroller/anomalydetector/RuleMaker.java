@@ -8,13 +8,11 @@ import java.util.List;
 import java.util.Map;
 
 
-import net.floodlightcontroller.core.FloodlightContext;
 import net.floodlightcontroller.core.IFloodlightProviderService;
 import net.floodlightcontroller.core.IOFSwitch;
 import net.floodlightcontroller.core.IListener.Command;
-import net.floodlightcontroller.core.web.serializers.IPv4Serializer;
 import net.floodlightcontroller.packet.Ethernet;
-import net.floodlightcontroller.packet.IPv4;
+
 
 
 import org.openflow.protocol.OFFlowMod;
@@ -46,7 +44,7 @@ public class RuleMaker
     protected Map<Long, Short> MacToPort;
     protected IFloodlightProviderService FloodlightProvider;
     private DetectionUnit Detector;
-    protected static Logger Logger = LoggerFactory.getLogger(RuleMaker.class);;
+    protected static Logger Logger = LoggerFactory.getLogger(RuleMaker.class);
     
     public RuleMaker(IFloodlightProviderService FloodlightProvider, DetectionUnit Detector)
 	{
@@ -116,15 +114,15 @@ public class RuleMaker
 	        	
 	        	match.setWildcards(Wildcards.FULL
 	        		//.matchOn(Flag.IN_PORT)
-	        		.matchOn(Flag.DL_TYPE)
 	        		.matchOn(Flag.DL_DST)
-	        		.matchOn(Flag.DL_SRC)
 	        		.matchOn(Flag.NW_PROTO)
-	        		.withNwSrcMask(8).withNwDstMask(32));
+	        		.matchOn(Flag.DL_TYPE)
+	        		.withNwSrcMask(32).withNwDstMask(32)
+	        		);
         
 	        	    this.pushPacket(sw, match, pi, outPort);
 	                this.CreateFlowMod(sw, OFFlowMod.OFPFC_ADD, OFPacketOut.BUFFER_ID_NONE, match, outPort);
-	                this.CreateFlowMod(sw, OFFlowMod.OFPFC_ADD, -1, match.clone()
+	               this.CreateFlowMod(sw, OFFlowMod.OFPFC_ADD, -1, match.clone()
 	                    .setDataLayerSource(match.getDataLayerDestination())
 	                    .setDataLayerDestination(match.getDataLayerSource())
 	                    .setNetworkSource(match.getNetworkDestination())
