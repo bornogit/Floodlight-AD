@@ -1,37 +1,18 @@
 Floodlight-AD
 =============
-
 A Floodlight Module For Anomaly Detection 
 
-Requirements
-
+Instructions to Run
 1. Add the GSON jar files to project library
 2. Remove the built in LearningSwitch and Forwarding Modules
+3. Install new signatures for base clusters in DetectionUnit.java or Just use the existing ones
+4. Build the project
 
 Test Instructions 
 1. Run mininet 
 2. Try pinging or use iperf. 
-3. Read data from the log file 
 
-
-Approach 1
-- Create General learning switch rule 
-- Start with general rules
-- Keep an eye on the traffic size
-- Expand and DPI and install more rules when traffic size of a cluster exceeds threshold
-
-
-Approach 2 (May 3 Commit)
-- Install general learning switch rules 
-- Keep collecting data and create general clusters 
-- Upon detecting anomaly 
-	- Get the corresponding rule for the concerned cluster 
-	- Change the rule to send packet to the controller 
-	- Get the packet information and get keep creating more specific flows with the packet attributes 
-		- For each flow there will be a separate cluster 
-		- For the unique flow it will the cluster size is significant keep that rule 
-		
-		
+	
 
 Update April 28 Commit 
 
@@ -43,13 +24,29 @@ Update April 28 Commit
 6. Relate Flow with Clusters 
 7. Miscellanious
 
-Update May 3 Commit 
+Update May 15 Commit 
 Sample Output
 
-Cluster--0	 ---- 	*	 ---- 	*	 ---- 	*	 ---- 	*	 ---- 	ALL	 ---- 	100.0% 	 ---- 	100.0% 
-Cluster--3	 ---- 	*	 ---- 	*	 ---- 	*	 ---- 	*	 ---- 	ICMP	 ---- 	100.0% 	 ---- 	100.0% 
-Cluster--10	 ---- 	10.0.0.2/0	 ---- 	10.0.0.1/0	 ---- 	0	 ---- 	0	 ---- 	ICMP	 ---- 	25.0% 	 ---- 	25.0% 
-Cluster--11	 ---- 	10.0.0.1/0	 ---- 	10.0.0.2/0	 ---- 	0	 ---- 	0	 ---- 	ICMP	 ---- 	25.0% 	 ---- 	25.0% 
-Cluster--12	 ---- 	10.0.0.3/0	 ---- 	10.0.0.2/0	 ---- 	0	 ---- 	0	 ---- 	ICMP	 ---- 	25.0% 	 ---- 	25.0% 
-Cluster--13	 ---- 	10.0.0.2/0	 ---- 	10.0.0.3/0	 ---- 	0	 ---- 	0	 ---- 	TCP	 ---- 	25.0% 	 ---- 	25.0% 
- Total Number of Packets: 156 Total Traffic: 0.015 MB 
+Cluster Label ---- Source IP 	----	Dest IP 	 ---- 	Src Port----	Dest Port----Protocol----PacketCount(%)----ByteCount(%) 
+Cluster--0	 ---- 	*	 		---- 	*		 	 ---- 	*	 	---- 	*	 	---- 	ALL	 ---- 	100.0% 	 ---- 	100.0% 
+Cluster--1	 ---- 	*	 		---- 	*		 	 ---- 	*	 	---- 	*	 	---- 	TCP	 ---- 	93.0% 	 ---- 	92.4% 
+Cluster--2	 ---- 	*	 		---- 	*	 	 	 ---- 	*	 	---- 	*	 	---- 	ICMP ---- 	7.0% 	 ---- 	6.6% 
+Cluster--3	 ---- 	10.0.0.0/16	---- 	*	 	 	 ---- 	*	 	---- 	*	 	---- 	TCP	 ---- 	93.0% 	 ---- 	92.4% 
+Cluster--4	 ---- 	*			---- 	10.0.0.0/16	 ---- 	*	 	---- 	*	 	---- 	TCP	 ---- 	93.0% 	 ---- 	92.4% 
+Cluster--5	 ---- 	10.0.0.1/0	---- 	*	 	 	 ---- 	*	 	---- 	*	 	---- 	TCP	 ---- 	48.0% 	 ---- 	48.0% 
+Cluster--6	 ---- 	10.0.0.64/0	---- 	*	 	 	 ---- 	*	 	---- 	*	 	---- 	TCP	 ---- 	45.0% 	 ---- 	45.0% 
+Cluster--11	 ---- 	10.0.0.64/0	----	10.0.0.56/0	 ---- 	-26329	---- 	-26329	---- 	TCP	 ---- 	25.0% 	 ---- 	25.0% 
+Cluster--12	 ---- 	10.0.0.64/0	---- 	10.0.0.54/0	 ---- 	-28684	---- 	-28684	---- 	TCP	 ---- 	20.0% 	 ---- 	19.8% 
+Cluster--14	 ---- 	10.0.0.1/0	---- 	10.0.0.55/0	 ---- 	-12345	---- 	-12345	---- 	TCP	 ---- 	23.0% 	 ---- 	22.6% 
+Cluster--13	 ---- 	10.0.0.1/0	---- 	10.0.0.53/0	 ---- 	-20100	---- 	-20100	---- 	TCP	 ---- 	25.0% 	 ---- 	25.0% 
+Cluster--7	 ---- 	10.0.0.2/0	---- 	10.0.0.1/0	 ---- 	*	 	---- 	*		---- 	ICMP ---- 	2.0% 	 ---- 	1.9%  
+Cluster--9	 ---- 	10.0.0.1/0	---- 	10.0.0.2/0	 ---- 	*	 	---- 	*	 	---- 	ICMP ---- 	2.0%  	 ---- 	2.0% 
+Cluster--8	 ---- 	10.0.0.3/0	---- 	10.0.0.2/0	 ---- 	*	 	---- 	*		---- 	ICMP ---- 	1.5% 	 ---- 	1.3% 
+Cluster--10	 ---- 	10.0.0.2/0	---- 	10.0.0.3/0	 ---- 	*	 	---- 	*		---- 	ICMP ---- 	1.5% 	 ---- 	1.4% 
+
+Clustering Threshold: 1.0%
+Total Number of Packets: 120542 
+Total Traffic: 123 MB 
+ 
+
+ 
